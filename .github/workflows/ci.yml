@@ -1,0 +1,99 @@
+name: ci
+
+# NEVER `databricks bundle run` here. Deploying a definition is free; triggering a run
+# burns Free Edition quota on every merge, and an exhausted quota shuts compute down
+# for the rest of the day.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  lint-and-fast-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: ruff
+        run: ruff check .
+      - name: mypy (non-Spark modules)
+        run: mypy src/pipelines
+      - name: fast tests
+        run: pytest -m "not spark" -q
+
+  spark-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          # Spark 4 supports 17 and 21; pin so a runner image bump cannot silently
+          # move us onto an unsupported JDK.
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: spark tests (local SparkSession + Delta, zero Databricks)
+        run: pytest -m spark -q
+      - name: coverage on non-Spark modules
+        run: |
+          pytest -m "not spark" -q \
+            --cov=pipelines.config --cov=pipelines.contracts --cov=pipelines.framework.metrics \
+            --cov-report=term-missing --cov-fail-under=85
+
+  contract-compat:
+    # The gate from AGENTS.md section 8: every table and column this repo reads or
+    # writes must exist in the pinned contracts version. Failing must block merge.
+    # Runs without Spark on purpose -- the contracts package must not need a JVM.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: contracts drift
+        run: pytest tests/test_contract_compat.py -q
+      - name: repo guards (no CREATE TABLE, no dbutils outside entrypoints)
+        run: pytest tests/test_repo_guards.py -q
+
+  build-and-deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [lint-and-fast-tests, spark-tests, contract-compat]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+      - run: pip install build
+      - name: build wheel
+        run: python -m build --wheel
+      - uses: actions/upload-artifact@v4
+        with:
+          name: edgar-pipelines-wheel
+          path: dist/*.whl
+      - uses: databricks/setup-cli@main
+      - name: bundle validate
+        run: databricks bundle validate -t dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      - name: bundle deploy (dev)
+        run: databricks bundle deploy -t dev
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}

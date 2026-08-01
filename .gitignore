@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- edgar-pipelines local harness ---
+# The local Delta warehouse and export. Regenerate with `make local-run`.
+.local/
+# data/landing/ IS committed: it is the ~1.3 MB real-EDGAR test subset the local
+# harness and docs refer to. See docs/03-local-test-harness.md.
