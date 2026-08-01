@@ -1,9 +1,10 @@
-.PHONY: install lint test test-fast test-spark local-run fetch-data clean
+.PHONY: install lint test test-fast test-spark local-run fetch-data verify-workspace build deploy clean
 
 VENV ?= .venv
 PY   ?= $(VENV)/bin/python
 LANDING   ?= data/landing
 WAREHOUSE ?= .local/warehouse
+TARGET    ?= dev
 
 install:
 	python -m venv $(VENV)
@@ -31,6 +32,24 @@ fetch-data:
 
 local-run:
 	$(PY) tools/run_local_pipeline.py --landing $(LANDING) --warehouse $(WAREHOUSE)
+
+# --- Databricks. See docs/04-databricks-deploy.md.
+# Needs DATABRICKS_HOST and DATABRICKS_TOKEN (copy .env.example to .env).
+
+# Read-only prerequisite check. Run this BEFORE deploy: it is far cheaper to find a
+# missing migration here than during a job run on a Free Edition quota.
+verify-workspace:
+	$(PY) tools/dbx_verify.py
+
+build:
+	$(PY) -m pip install -q build
+	$(PY) -m build --wheel
+
+# Uploads the wheel and the job definition. Does NOT trigger a run -- `bundle run`
+# burns quota, and an exhausted quota shuts compute down for the rest of the day.
+deploy: verify-workspace build
+	databricks bundle validate -t $(TARGET)
+	databricks bundle deploy -t $(TARGET)
 
 clean:
 	rm -rf .local .pytest_cache .mypy_cache .ruff_cache dist build

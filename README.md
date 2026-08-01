@@ -47,6 +47,25 @@ pytest -m spark          # local SparkSession + Delta
 ruff check . && mypy src/pipelines
 ```
 
+## Push it to Databricks
+
+Full runbook in **[docs/04-databricks-deploy.md](docs/04-databricks-deploy.md)**. The
+short version:
+
+```bash
+cp .env.example .env && $EDITOR .env     # DATABRICKS_HOST + a dapi... workspace PAT
+set -a && . ./.env && set +a
+
+make verify-workspace                    # read-only: catalog, schemas, every contract
+                                         # table and column, landing volume, job state
+make deploy                              # validate + deploy the bundle. Never runs it.
+```
+
+`verify-workspace` runs first for a reason: on Free Edition a missing migration found
+during a job run costs a slice of the daily quota, and an exhausted quota shuts compute
+down until tomorrow. `make deploy` uploads the wheel and the job definition and stops —
+triggering a run is a deliberate, manual step.
+
 ## The rules that matter most
 
 Full list in `AGENTS.md` §5. The four that break things silently:
@@ -70,6 +89,7 @@ Full list in `AGENTS.md` §5. The four that break things silently:
 | [`docs/00-design-doc.md`](docs/00-design-doc.md) | Why the shape is the shape; Free Edition constraints |
 | [`docs/02-data-contracts.md`](docs/02-data-contracts.md) | Every table, column, DQ check and acceptance criterion |
 | [`docs/03-local-test-harness.md`](docs/03-local-test-harness.md) | The local path, the test data, the differences |
+| [`docs/04-databricks-deploy.md`](docs/04-databricks-deploy.md) | How to get this onto a workspace, and the manual checks in order |
 | [`docs/10-decisions.md`](docs/10-decisions.md) | ADRs, including where the implementation deviates from `AGENTS.md` and why |
 | [`docs/README.md`](docs/README.md) | **Provenance:** which docs are reconstructed rather than copied from repo 1 |
 
