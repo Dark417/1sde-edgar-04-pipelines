@@ -1,0 +1,30 @@
+{
+  "ciks": [
+    "0001825088",
+    "0000066418",
+    "0001673481",
+    "0000320193"
+  ],
+  "generated_at": "2026-08-01T07:54:55Z",
+  "http_requests": 70,
+  "index_dates": [
+    "2026-07-30",
+    "2026-07-31"
+  ],
+  "logical_date": "2026-07-31",
+  "streams": {
+    "company_concept": {
+      "bytes": 1095305,
+      "not_reported_by_filer": 15,
+      "records": 49
+    },
+    "company_submissions": {
+      "bytes": 37430,
+      "records": 4
+    },
+    "filing_index": {
+      "bytes": 155988,
+      "records": 241
+    }
+  }
+}

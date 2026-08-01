@@ -1,0 +1,113 @@
+# Databricks Asset Bundle (feature F-11).
+#
+# The job definition here must match the one repo 2's Terraform declares. Repo 2 owns
+# the job *resource* and its schedule; this bundle owns the task graph and the wheel
+# version the tasks run.
+#
+# Two Free Edition facts shape everything below:
+#   * serverless compute only -- no cluster blocks, no init scripts, no JVM libraries;
+#   * a daily quota that shuts compute down for the rest of the day when exhausted.
+#
+# Which is why `max_concurrent_runs: 1` and why CI never runs `bundle run`. Deploying a
+# definition is free; triggering a run costs quota on every merge.
+
+bundle:
+  name: edgar-pipelines
+
+variables:
+  catalog:
+    description: Unity Catalog catalog the pipeline writes to.
+    default: edgar
+  landing_root:
+    description: Landing volume path (repo 2 publishes it at /edgar-lakehouse/dbx/landing_volume).
+    default: /Volumes/edgar/landing/edgar
+  export_root:
+    description: Serving bucket URI (repo 2 publishes it at /edgar-lakehouse/s3/serving_bucket).
+    default: ""
+  wheel_version:
+    description: Exact wheel version. Pinned with ==, never >= and never main.
+    default: 0.1.0
+
+artifacts:
+  edgar_pipelines_wheel:
+    type: whl
+    build: python -m build --wheel
+    path: .
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
+  prod:
+    mode: production
+    workspace:
+      root_path: /Workspace/Shared/.bundle/${bundle.name}/${bundle.target}
+
+resources:
+  jobs:
+    edgar_medallion:
+      name: edgar-medallion-${bundle.target}
+
+      # One run at a time. Two overlapping runs on a Free Edition quota is how you lose
+      # a day -- and the second run would race the first one's MERGEs.
+      max_concurrent_runs: 1
+
+      # No retries. A failed task here means bad data or a missing migration, and
+      # retrying either one burns quota to produce the same failure.
+      # Repo 2 owns the schedule; it stays paused until repo 4's manual checks pass.
+      queue:
+        enabled: false
+
+      parameters:
+        - name: logical_date
+          default: "{{job.trigger.time.iso_date}}"
+        - name: catalog
+          default: ${var.catalog}
+        - name: environment
+          default: ${bundle.target}
+
+      environments:
+        - environment_key: serverless
+          spec:
+            client: "3"
+            dependencies:
+              - ./dist/*.whl
+
+      tasks:
+        # The graph is deliberately narrow: Free Edition allows at most 5 concurrent
+        # job tasks, and a wide fan-out here would queue rather than parallelize.
+        - task_key: bronze_ingest
+          environment_key: serverless
+          python_wheel_task:
+            package_name: edgar_pipelines
+            entry_point: edgar-pipelines
+            parameters: ["bronze_ingest"]
+
+        - task_key: silver_transform
+          environment_key: serverless
+          depends_on:
+            - task_key: bronze_ingest
+          python_wheel_task:
+            package_name: edgar_pipelines
+            entry_point: edgar-pipelines
+            parameters: ["silver_transform"]
+
+        - task_key: gold_build
+          environment_key: serverless
+          depends_on:
+            - task_key: silver_transform
+          python_wheel_task:
+            package_name: edgar_pipelines
+            entry_point: edgar-pipelines
+            parameters: ["gold_build"]
+
+        - task_key: serving_export
+          environment_key: serverless
+          depends_on:
+            - task_key: gold_build
+          python_wheel_task:
+            package_name: edgar_pipelines
+            entry_point: edgar-pipelines
+            parameters: ["serving_export"]
