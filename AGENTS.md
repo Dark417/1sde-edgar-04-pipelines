@@ -1,9 +1,9 @@
-# Repo 4 / 5 — `1sde-databricks-04-pipelines`
+# Repo 4 / 5 — `1sde-databricks-edgar-04-pipelines`
 
 > Copy to repo root as `AGENTS.md`. Sections 0–8 are agent instructions. Section 9 is
 > yours, by hand. Section 10 is what repo 5 consumes.
 >
-> GitHub: `github.com/Dark417/1sde-databricks-04-pipelines`
+> GitHub: `github.com/Dark417/1sde-databricks-edgar-04-pipelines`
 > Build order position: **4 of 5.** Requires repos 1, 2, 3 complete and at least one
 > landing object present.
 
@@ -42,7 +42,7 @@ Build those two tests before building the features they test.
 - Table DDL. Repo 1's Liquibase created every table. **This repo never issues
   `CREATE TABLE`.** If a table is missing, the job fails loudly — that is correct
   behavior, because it means a migration was not applied.
-- Schema definitions or DQ rule text. Both imported from `fin_lakehouse_contracts`.
+- Schema definitions or DQ rule text. Both imported from `edgar_lakehouse_contracts`.
 - Infrastructure, job scheduling, catalog/schema creation. Repo 2.
 - Fetching anything from the internet. Repo 3. This repo reads landing only.
 
@@ -58,11 +58,11 @@ is missing.
 
 | Input | Source | Used for |
 |---|---|---|
-| `fin_lakehouse_contracts==<version>` | repo 1 | schemas, DQ registry, names, concepts |
+| `edgar_lakehouse_contracts==<version>` | repo 1 | schemas, DQ registry, names, concepts |
 | Tables created by Liquibase | repo 1 §9.6 | every write target |
-| `fin` catalog + 4 schemas + volume | repo 2 | write targets |
-| `/fin-lakehouse/s3/serving_bucket` | repo 2 SSM | export destination |
-| `/fin-lakehouse/dbx/host`, job id | repo 2 SSM | deploy target |
+| `edgar` catalog + 4 schemas + volume | repo 2 | write targets |
+| `/edgar-lakehouse/s3/serving_bucket` | repo 2 SSM | export destination |
+| `/edgar-lakehouse/dbx/host`, job id | repo 2 SSM | deploy target |
 | Landing objects | repo 3 | Auto Loader source |
 | `LandingEnvelope` shape | repos 1+3 | bronze parsing |
 
@@ -98,7 +98,7 @@ Lint/types    ruff, mypy --strict (Spark code: mypy on non-Spark modules only)
 ## 4. Layered structure
 
 ```
-1sde-databricks-04-pipelines/
+1sde-databricks-edgar-04-pipelines/
 ├── AGENTS.md
 ├── pyproject.toml
 ├── databricks.yml            # Asset Bundle: job + task wiring
@@ -329,25 +329,25 @@ in the pinned contracts version's schemas. Failing must block merge.
 
 ### 9.1 Create the repo
 ```bash
-gh repo create Dark417/1sde-databricks-04-pipelines \
+gh repo create Dark417/1sde-databricks-edgar-04-pipelines \
   --private --add-readme --gitignore Python --license mit --clone
-cd 1sde-databricks-04-pipelines
+cd 1sde-databricks-edgar-04-pipelines
 mkdir -p docs && cp ../design/00-design-doc.md ../design/02-data-contracts.md docs/
 ```
 
 ### 9.2 Confirm prerequisites before generating 🔴
 ```sql
 -- in a Databricks notebook
-SHOW TABLES IN fin.bronze;
-SHOW TABLES IN fin.silver;
-SHOW TABLES IN fin.gold;
-SELECT * FROM fin.default.DATABASECHANGELOG ORDER BY dateexecuted DESC LIMIT 5;
+SHOW TABLES IN edgar.bronze;
+SHOW TABLES IN edgar.silver;
+SHOW TABLES IN edgar.gold;
+SELECT * FROM edgar.default.DATABASECHANGELOG ORDER BY dateexecuted DESC LIMIT 5;
 ```
 All tables present and `DATABASECHANGELOG` populated. If not, go back to repo 1 §9.6.
 Generating pipeline code against tables that do not exist wastes a full cycle.
 
 ```python
-dbutils.fs.ls("/Volumes/fin/landing/edgar/filing_index/")   # repo 3 output present?
+dbutils.fs.ls("/Volumes/edgar/landing/edgar/filing_index/")   # repo 3 output present?
 ```
 
 ### 9.3 Install the CLI and bundle tooling
@@ -363,7 +363,7 @@ entrypoint in a notebook.
 
 **Check by hand:**
 ```sql
-SELECT count(*), count(_rescued_data) FROM fin.bronze.filing_index_raw;
+SELECT count(*), count(_rescued_data) FROM edgar.bronze.filing_index_raw;
 ```
 `_rescued_data` must be null for every row on the first run. If it is not, your
 contract is already wrong — fix repo 1 before touching silver.
@@ -371,17 +371,17 @@ contract is already wrong — fix repo 1 before touching silver.
 ### 9.5 Run silver, then run it again 🔴
 This is the single most important manual check in the project.
 ```sql
-SELECT count(*) FROM fin.silver.filing;
+SELECT count(*) FROM edgar.silver.filing;
 -- re-run the silver entrypoint
-SELECT count(*) FROM fin.silver.filing;      -- must be IDENTICAL
-SELECT count(DISTINCT _first_seen_ts) FROM fin.silver.filing;  -- must not grow
+SELECT count(*) FROM edgar.silver.filing;      -- must be IDENTICAL
+SELECT count(DISTINCT _first_seen_ts) FROM edgar.silver.filing;  -- must not grow
 ```
 If the count grows, your MERGE key is wrong. Stop and fix it. Everything downstream is
 built on this being true.
 
 ### 9.6 Verify quarantine is working
 ```sql
-SELECT _dq_check_name, count(*) FROM fin.silver.filing_quarantine GROUP BY 1;
+SELECT _dq_check_name, count(*) FROM edgar.silver.filing_quarantine GROUP BY 1;
 ```
 Zero rows on clean data is expected. Zero rows *forever* means the checks are not
 wired up — deliberately inject a malformed accession into a landing file and confirm
@@ -391,7 +391,7 @@ it lands in quarantine.
 Pick a company you know amended a filing. Confirm:
 ```sql
 SELECT accession_number, filed_date, value
-FROM fin.silver.financial_fact
+FROM edgar.silver.financial_fact
 WHERE cik = '<cik>' AND concept_canonical = 'revenue_total'
   AND period_end = '<date>'
 ORDER BY filed_date;

@@ -1,1 +1,1 @@
-# 1sde-databricks-04-pipelines
+# 1sde-databricks-edgar-04-pipelines
