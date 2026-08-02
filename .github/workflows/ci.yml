@@ -11,6 +11,17 @@ on:
 
 env:
   PYTHON_VERSION: "3.11"
+  # The contracts wheel is a dev dependency (see pyproject) but repo 1 publishes to
+  # GitHub Releases, not PyPI -- so `pip install -e ".[dev]"` alone cannot resolve it and
+  # fails with "No matching distribution". Every job that installs the dev extra must
+  # fetch the wheel into ./wheels first and install with --find-links.
+  #
+  # Keep this tag in step with the `edgar-lakehouse-contracts==` pin in pyproject.toml.
+  # They are two halves of one decision: the pin says which version, this says where to
+  # get it, and a mismatch fails at install time rather than silently resolving to
+  # something else.
+  CONTRACTS_REPO: Dark417/1sde-edgar-01-contracts
+  CONTRACTS_TAG: v1.2.0
 
 jobs:
   lint-and-fast-tests:
@@ -25,7 +36,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: pip install -e ".[dev]"
+      - name: Fetch the pinned contracts wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p wheels
+          gh release download "$CONTRACTS_TAG" --repo "$CONTRACTS_REPO" \
+            --pattern 'edgar_lakehouse_contracts-*.whl' --dir wheels
+      - run: pip install --find-links wheels -e ".[dev]"
       - name: ruff
         run: ruff check .
       - name: mypy (non-Spark modules)
@@ -47,7 +65,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: pip install -e ".[dev]"
+      - name: Fetch the pinned contracts wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p wheels
+          gh release download "$CONTRACTS_TAG" --repo "$CONTRACTS_REPO" \
+            --pattern 'edgar_lakehouse_contracts-*.whl' --dir wheels
+      - run: pip install --find-links wheels -e ".[dev]"
       - name: spark tests (local SparkSession + Delta, zero Databricks)
         run: pytest -m spark -q
       - name: coverage on non-Spark modules
@@ -67,7 +92,14 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: pip
-      - run: pip install -e ".[dev]"
+      - name: Fetch the pinned contracts wheel
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p wheels
+          gh release download "$CONTRACTS_TAG" --repo "$CONTRACTS_REPO" \
+            --pattern 'edgar_lakehouse_contracts-*.whl' --dir wheels
+      - run: pip install --find-links wheels -e ".[dev]"
       - name: contracts drift
         run: pytest tests/test_contract_compat.py -q
       - name: repo guards (no CREATE TABLE, no dbutils outside entrypoints)
