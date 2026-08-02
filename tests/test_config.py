@@ -78,9 +78,7 @@ def test_logical_date_must_be_a_real_iso_date(monkeypatch: pytest.MonkeyPatch, b
     ("var", "value"),
     [("EDGAR_INGEST_MODE", "streaming"), ("EDGAR_STORAGE_MODE", "gcs")],
 )
-def test_enum_settings_are_validated(
-    monkeypatch: pytest.MonkeyPatch, var: str, value: str
-) -> None:
+def test_enum_settings_are_validated(monkeypatch: pytest.MonkeyPatch, var: str, value: str) -> None:
     _base_env(monkeypatch)
     monkeypatch.setenv(var, value)
     with pytest.raises(ValueError):

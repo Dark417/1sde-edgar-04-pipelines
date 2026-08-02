@@ -10,9 +10,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from edgar_lakehouse_contracts import dq as dq_registry
+from edgar_lakehouse_contracts import names, schemas
+
 from pipelines.config import Settings
-from pipelines.contracts import dq as dq_registry
-from pipelines.contracts import names, schemas
 from pipelines.framework.delta_ops import rollback_on_failure
 from pipelines.framework.keys import surrogate_key
 from pipelines.framework.merge import MergeStats, merge_scd2
@@ -94,7 +95,7 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
         spark,
         run_ctx,
         built,
-        dq_registry.checks_for(f"{names.SILVER_SCHEMA}.{SPEC.name}", kind="row"),
+        dq_registry.checks_for(f"{names.SCHEMA_SILVER}.{SPEC.name}", kind="row"),
         target_spec=SPEC,
         quarantine_table=quarantine,
         metrics_prefix="silver.filing",

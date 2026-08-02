@@ -289,7 +289,9 @@ def test_restatement_id_is_deterministic(spark: Any) -> None:
             ("0001234567-26-000002", date(2026, 6, 1), 1_100_000, "USD", None, "10-K/A", *FY25),
         ],
     )
-    assert build(facts).collect()[0]["restatement_id"] == build(facts).collect()[0]["restatement_id"]
+    assert (
+        build(facts).collect()[0]["restatement_id"] == build(facts).collect()[0]["restatement_id"]
+    )
 
 
 def test_unmapped_concepts_do_not_participate(spark: Any) -> None:

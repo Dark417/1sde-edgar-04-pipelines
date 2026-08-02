@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from edgar_lakehouse_contracts import schemas
 from tools.dbx_verify import (
     MISSING,
     OK,
@@ -17,8 +18,6 @@ from tools.dbx_verify import (
     check_jobs,
     check_tables,
 )
-
-from pipelines.contracts import schemas
 
 
 class FakeWorkspace:

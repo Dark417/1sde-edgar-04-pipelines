@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from edgar_lakehouse_contracts import schemas
 
-from pipelines.contracts import schemas
 from pipelines.framework.preflight import MissingTableError, assert_tables_exist, table_exists
 
 pytestmark = pytest.mark.spark
@@ -32,9 +32,7 @@ def test_error_lists_every_missing_table(spark: Any, tables: str) -> None:
     spark.sql(f"DROP TABLE {tables}.silver.filing")
     spark.sql(f"DROP TABLE {tables}.gold.company_profile")
     with pytest.raises(MissingTableError) as exc:
-        assert_tables_exist(
-            spark, [f"{tables}.silver.filing", f"{tables}.gold.company_profile"]
-        )
+        assert_tables_exist(spark, [f"{tables}.silver.filing", f"{tables}.gold.company_profile"])
     assert len(exc.value.missing) == 2
     assert "020-silver.yaml" in str(exc.value)
     assert "030-gold.yaml" in str(exc.value)

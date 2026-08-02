@@ -43,8 +43,8 @@ import requests
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from pipelines.contracts import concepts, names  # noqa: E402
-from pipelines.contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM  # noqa: E402
+from edgar_lakehouse_contracts import concepts, names  # noqa: E402
+from edgar_lakehouse_contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM  # noqa: E402
 
 # The SEC's fair-access policy is 10 requests/second with a declared User-Agent.
 # Staying under it is not optional: EDGAR blocks by IP, and a blocked laptop cannot be

@@ -45,7 +45,7 @@ class MissingTableError(RuntimeError):
 
 def _changeset_for(fqn: str) -> str:
     """Best-known changeset for a table, from the contract or from its schema name."""
-    from pipelines.contracts import schemas
+    from edgar_lakehouse_contracts import schemas
 
     spec = schemas.TABLES.get(fqn)
     if spec is not None:

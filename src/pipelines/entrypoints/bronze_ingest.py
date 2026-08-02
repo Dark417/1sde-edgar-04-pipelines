@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from edgar_lakehouse_contracts import schemas
+
 from pipelines.bronze import company_concept, company_submissions, filing_index
-from pipelines.contracts import schemas
 from pipelines.framework.metrics import job_run
 
 from ._common import bootstrap

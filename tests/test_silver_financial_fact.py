@@ -219,7 +219,9 @@ def test_decimals_is_null_because_the_api_does_not_return_it(
         ],
     )
     financial_fact.run(spark, settings, job_run_ctx)
-    assert spark.table(settings.table("edgar.silver.financial_fact")).collect()[0]["decimals"] is None
+    assert (
+        spark.table(settings.table("edgar.silver.financial_fact")).collect()[0]["decimals"] is None
+    )
 
 
 def test_running_twice_is_idempotent(

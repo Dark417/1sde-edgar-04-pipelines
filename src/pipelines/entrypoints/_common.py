@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from edgar_lakehouse_contracts import schemas
+
 from pipelines import config, session
-from pipelines.contracts import schemas
 from pipelines.framework.preflight import assert_tables_exist
 
 __all__ = ["bootstrap", "widget_overrides"]

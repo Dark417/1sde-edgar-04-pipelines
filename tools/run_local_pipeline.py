@@ -34,9 +34,10 @@ for _extra in (str(_REPO_ROOT / "src"), str(_REPO_ROOT)):
     if _extra not in sys.path:
         sys.path.insert(0, _extra)
 
+from edgar_lakehouse_contracts import schemas  # noqa: E402
+
 from pipelines.bronze import company_concept, company_submissions, filing_index  # noqa: E402
 from pipelines.config import Settings, run_id_for  # noqa: E402
-from pipelines.contracts import schemas  # noqa: E402
 from pipelines.export import serving  # noqa: E402
 from pipelines.framework.metrics import job_run  # noqa: E402
 from pipelines.framework.preflight import assert_tables_exist  # noqa: E402

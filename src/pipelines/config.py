@@ -19,7 +19,7 @@ from datetime import date
 from functools import lru_cache
 from typing import Any, Final, Literal
 
-from pipelines.contracts import names
+from edgar_lakehouse_contracts import names
 
 __all__ = [
     "MissingConfigError",

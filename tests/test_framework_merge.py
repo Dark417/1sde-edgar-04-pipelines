@@ -127,9 +127,7 @@ def test_scd1_inserts_then_is_a_no_op(spark: Any, tables: str) -> None:
     first = merge_scd1(spark, source, target, keys=("accession_number",))
     assert first.rows_inserted == 1
 
-    before = {
-        r["accession_number"]: r["_first_seen_ts"] for r in spark.table(target).collect()
-    }
+    before = {r["accession_number"]: r["_first_seen_ts"] for r in spark.table(target).collect()}
     second = merge_scd1(spark, source, target, keys=("accession_number",))
     after = {r["accession_number"]: r["_first_seen_ts"] for r in spark.table(target).collect()}
 
@@ -203,9 +201,7 @@ def test_scd2_b_tracked_change_closes_the_old_row_and_inserts_a_new_one(
 ) -> None:
     target = f"{tables}.silver.company"
     merge_scd2(spark, _company(spark), target, ("cik",), TRACKED, "2026-07-31")
-    merge_scd2(
-        spark, _company(spark, name="RENAMED INC"), target, ("cik",), TRACKED, "2026-08-05"
-    )
+    merge_scd2(spark, _company(spark, name="RENAMED INC"), target, ("cik",), TRACKED, "2026-08-05")
 
     rows = sorted(spark.table(target).collect(), key=lambda r: r["valid_from"])
     assert len(rows) == 2
@@ -263,9 +259,7 @@ def test_scd2_same_day_change_replaces_the_version_in_place(spark: Any, tables: 
     fails the no-overlap invariant and cannot be point-in-time queried."""
     target = f"{tables}.silver.company"
     merge_scd2(spark, _company(spark), target, ("cik",), TRACKED, "2026-07-31")
-    merge_scd2(
-        spark, _company(spark, name="RENAMED INC"), target, ("cik",), TRACKED, "2026-07-31"
-    )
+    merge_scd2(spark, _company(spark, name="RENAMED INC"), target, ("cik",), TRACKED, "2026-07-31")
     rows = spark.table(target).collect()
     assert len(rows) == 1
     assert rows[0]["company_name"] == "RENAMED INC"

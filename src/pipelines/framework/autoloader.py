@@ -34,8 +34,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pipelines.contracts import names
-from pipelines.contracts.envelope import ENVELOPE_FIELDS
+from edgar_lakehouse_contracts import names
+from edgar_lakehouse_contracts.envelope import ENVELOPE_FIELDS
 
 __all__ = [
     "LandingBatch",

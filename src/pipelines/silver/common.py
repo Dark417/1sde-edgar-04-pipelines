@@ -11,8 +11,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from pipelines.contracts import schemas
-from pipelines.contracts.models import DQCheck, TableSpec
+from edgar_lakehouse_contracts import schemas
+from edgar_lakehouse_contracts.dq import DQCheck
+from edgar_lakehouse_contracts.models import TableSpec
+
 from pipelines.framework.dq import apply_dq
 from pipelines.framework.merge import merge_scd1
 from pipelines.framework.metrics import JobRun

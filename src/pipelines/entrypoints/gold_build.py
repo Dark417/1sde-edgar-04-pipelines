@@ -6,7 +6,8 @@ Order matters: ``restatement_event`` is built first because ``financials_current
 
 from __future__ import annotations
 
-from pipelines.contracts import schemas
+from edgar_lakehouse_contracts import schemas
+
 from pipelines.framework.metrics import job_run
 from pipelines.gold import (
     company_profile,

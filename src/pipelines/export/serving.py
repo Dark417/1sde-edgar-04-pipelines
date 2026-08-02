@@ -28,8 +28,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from edgar_lakehouse_contracts import schemas
+
 from pipelines.config import Settings
-from pipelines.contracts import schemas
 from pipelines.framework.metrics import JobRun
 
 __all__ = ["ExportedTable", "Manifest", "build_manifest", "export_all", "run"]

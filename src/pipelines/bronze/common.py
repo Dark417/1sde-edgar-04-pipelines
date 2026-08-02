@@ -14,9 +14,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+from edgar_lakehouse_contracts import names, schemas
+from edgar_lakehouse_contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM
+
 from pipelines.config import Settings, batch_id_for
-from pipelines.contracts import names, schemas
-from pipelines.contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM
 from pipelines.framework import autoloader
 from pipelines.framework.metrics import JobRun
 
@@ -90,7 +91,7 @@ def ingest_stream(
     (or Auto Loader's checkpoint) exists.
     """
     stream = names.stream(stream_name)
-    spec = schemas.table(f"{names.CATALOG}.{names.BRONZE_SCHEMA}.{stream.bronze_table}")
+    spec = schemas.table(f"{names.CATALOG}.{names.SCHEMA_BRONZE}.{stream.bronze_table}")
     target = settings.table(spec.fqn)
 
     if settings.ingest_mode == "batch":

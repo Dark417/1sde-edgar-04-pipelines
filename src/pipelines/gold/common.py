@@ -13,7 +13,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from pipelines.contracts.models import TableSpec
+from edgar_lakehouse_contracts.models import TableSpec
 
 __all__ = ["align_to_spec", "stamp", "write_gold"]
 

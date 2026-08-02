@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from pipelines.contracts import schemas
+from edgar_lakehouse_contracts import schemas
+
 from pipelines.export import serving
 from pipelines.framework.metrics import job_run
 

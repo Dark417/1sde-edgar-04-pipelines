@@ -39,7 +39,7 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from pipelines.contracts import names, schemas  # noqa: E402
+from edgar_lakehouse_contracts import names, schemas  # noqa: E402
 
 OK = "ok"
 MISSING = "missing"
@@ -123,10 +123,10 @@ def check_catalog_and_schemas(ws: Workspace, catalog: str) -> list[Check]:
     code, body = ws.get("/api/2.1/unity-catalog/schemas", catalog_name=catalog)
     schema_names = {s["name"] for s in body.get("schemas", [])} if code == 200 else set()
     wanted = {
-        names.LANDING_SCHEMA,
-        names.BRONZE_SCHEMA,
-        names.SILVER_SCHEMA,
-        names.GOLD_SCHEMA,
+        names.SCHEMA_LANDING,
+        names.SCHEMA_BRONZE,
+        names.SCHEMA_SILVER,
+        names.SCHEMA_GOLD,
     }
     missing = sorted(wanted - schema_names)
     checks.append(
@@ -138,7 +138,7 @@ def check_catalog_and_schemas(ws: Workspace, catalog: str) -> list[Check]:
 def check_tables(ws: Workspace, catalog: str) -> list[Check]:
     """Every table this repo writes must exist, with the columns the contract names."""
     by_schema: dict[str, dict[str, set[str]]] = {}
-    for schema in (names.BRONZE_SCHEMA, names.SILVER_SCHEMA, names.GOLD_SCHEMA):
+    for schema in (names.SCHEMA_BRONZE, names.SCHEMA_SILVER, names.SCHEMA_GOLD):
         code, body = ws.get(
             "/api/2.1/unity-catalog/tables", catalog_name=catalog, schema_name=schema
         )
@@ -179,7 +179,7 @@ def check_tables(ws: Workspace, catalog: str) -> list[Check]:
 
 def check_landing(ws: Workspace, catalog: str) -> list[Check]:
     code, body = ws.get(
-        "/api/2.1/unity-catalog/volumes", catalog_name=catalog, schema_name=names.LANDING_SCHEMA
+        "/api/2.1/unity-catalog/volumes", catalog_name=catalog, schema_name=names.SCHEMA_LANDING
     )
     volumes = {v["name"] for v in body.get("volumes", [])} if code == 200 else set()
     checks = [

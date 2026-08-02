@@ -15,12 +15,16 @@ No Spark: these are assertions about the specs, so they run on every PR.
 from __future__ import annotations
 
 import pytest
-
-from pipelines.contracts import schemas
-from pipelines.contracts.models import Layer, TableSpec
+from edgar_lakehouse_contracts import schemas
+from edgar_lakehouse_contracts.models import Layer, TableSpec
 
 BRONZE_SIGNATURE = {c.name for c in schemas.BRONZE_METADATA_COLUMNS}
-SILVER_SIGNATURE = {c.name for c in schemas.SILVER_LINEAGE_COLUMNS}
+SILVER_SIGNATURE = set(schemas.TABLES["edgar.silver.company"].column_names) & {
+    "_first_seen_ts",
+    "_last_seen_ts",
+    "_ingest_batch_id",
+    "_source_file",
+}
 GOLD_SIGNATURE = {"_generated_at", "_run_id"}
 
 #: Columns that may only ever appear in one layer. The value is the layer that owns it.

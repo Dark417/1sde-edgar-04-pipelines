@@ -159,7 +159,12 @@ def test_entrypoints_contain_no_logic() -> None:
 
 @pytest.mark.parametrize(
     "module",
-    ["pipelines.contracts", "pipelines.config", "pipelines.contracts.schemas", "tools.local_ddl"],
+    [
+        "edgar_lakehouse_contracts",
+        "pipelines.config",
+        "edgar_lakehouse_contracts.schemas",
+        "tools.local_ddl",
+    ],
 )
 def test_contract_and_config_modules_do_not_pull_in_pyspark(module: str) -> None:
     """CI's contract-compat job and the DDL renderer both run without Spark.

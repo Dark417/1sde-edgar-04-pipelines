@@ -112,7 +112,11 @@ resources:
           spec:
             client: "3"
             dependencies:
+              # Both wheels, installed from files. edgar-lakehouse-contracts is not on
+              # PyPI, so serverless cannot resolve it from an index -- listing the file
+              # is what makes a runtime dependency on repo 1 work at all.
               - ./dist/*.whl
+              - ./dist/contracts/*.whl
 
       tasks:
         # The graph is deliberately narrow: Free Edition allows at most 5 concurrent
