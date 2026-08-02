@@ -93,6 +93,14 @@ resources:
           default: ${var.catalog}
         - name: environment
           default: ${bundle.target}
+        # Empty means "use the configured default" -- config resolves
+        # env var -> SSM -> /Volumes/edgar/landing/edgar. Override it at run time to
+        # point a run at the seeded fixture prefix without touching the prefix repo 3
+        # owns:
+        #   databricks bundle run edgar_medallion -t dev \
+        #     --params landing_root=/Volumes/edgar/landing/edgar/_seed
+        - name: landing_root
+          default: ""
 
       environments:
         - environment_key: serverless

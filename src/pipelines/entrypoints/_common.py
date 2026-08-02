@@ -11,7 +11,19 @@ from pipelines.framework.preflight import assert_tables_exist
 
 __all__ = ["bootstrap", "widget_overrides"]
 
-_WIDGETS = ("logical_date", "catalog", "environment", "ingest_mode", "storage_mode")
+#: `landing_root` is here so a run can be pointed at a landing prefix other than the
+#: default -- specifically the seeded fixture prefix (see tools/dbx_seed_landing.py),
+#: which is how this pipeline is exercised on Databricks before repo 3 has ever run.
+#: Without it the only way to test against fixtures is to write them into the prefix
+#: repo 3 owns, which makes real and synthetic data indistinguishable afterwards.
+_WIDGETS = (
+    "logical_date",
+    "catalog",
+    "environment",
+    "ingest_mode",
+    "storage_mode",
+    "landing_root",
+)
 
 
 def widget_overrides() -> dict[str, str]:

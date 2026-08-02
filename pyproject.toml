@@ -7,7 +7,15 @@ name = "edgar-pipelines"
 version = "0.1.0"
 description = "EDGAR lakehouse medallion pipelines: landing -> bronze -> silver -> gold -> serving export"
 readme = "README.md"
-requires-python = "==3.11.*"
+# Serverless runs Python 3.12 (/databricks/python3/lib/python3.12/site-packages). This
+# was pinned to "==3.11.*", which made the wheel refuse to install on the only compute
+# this project has: ERROR_UNSUPPORTED_PYTHON_VERSION, at library-install time, before a
+# line of pipeline code ran. Local tests and CI both pass on 3.11, so nothing caught it
+# until the first real deploy.
+#
+# The upper bound stays: 3.13 is untested against this Spark/Delta pair, and an
+# unbounded range would move the failure from install time to runtime.
+requires-python = ">=3.11,<3.13"
 license = { text = "MIT" }
 authors = [{ name = "Dark417" }]
 
