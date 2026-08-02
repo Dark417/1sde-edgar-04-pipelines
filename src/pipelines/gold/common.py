@@ -66,10 +66,9 @@ def write_gold(
     matters precisely because gold is rebuilt rather than versioned -- once a rebuild
     replaces it, the inputs are the only way back.
     """
-    aligned = align_to_spec(stamp(df, run_id, source_version), spec).cache()
+    aligned = align_to_spec(stamp(df, run_id, source_version), spec)
     count = int(aligned.count())
     aligned.write.format("delta").mode("overwrite").option("overwriteSchema", "false").saveAsTable(
         table
     )
-    aligned.unpersist()
     return count

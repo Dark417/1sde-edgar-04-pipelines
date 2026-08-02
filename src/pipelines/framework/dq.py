@@ -145,8 +145,7 @@ def apply_dq(
         flag = f"_dq_flag_{i}"
         flag_names[flag] = check
         flagged = flagged.withColumn(flag, _flag_column(check))
-    flagged = flagged.cache()
-
+    flagged = flagged
     # One aggregation for every check, so N checks cost one pass and not N.
     agg_exprs = [F.count(F.lit(1)).alias("_rows_in")] + [
         F.sum(F.col(flag).cast("long")).alias(flag) for flag in flag_names
@@ -167,7 +166,6 @@ def apply_dq(
 
     if batch_failures:
         sample = _sample_failures(flagged, flag_names, batch_failures)
-        flagged.unpersist()
         raise DQBatchFailure(batch_failures, sample)
 
     reject_flags = [f for f, c in flag_names.items() if c.severity is Severity.REJECT]

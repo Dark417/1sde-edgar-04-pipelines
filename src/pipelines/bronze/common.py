@@ -104,12 +104,10 @@ def ingest_stream(
         autoloader.assert_known_envelope_versions(batch.df, [ENVELOPE_VERSION])
         prepared = _align_to_spec(
             project(_with_metadata(batch.df, stream_name, settings.logical_date)), spec
-        ).cache()
+        )
         rescued = int(prepared.filter(prepared["_rescued_data"].isNotNull()).count())
         rows = int(prepared.count())
         prepared.write.format("delta").mode("append").saveAsTable(target)
-        prepared.unpersist()
-
         # Commit the ledger only after the append succeeded. A crash before this point
         # replays the file; a crash after it would have lost it.
         batch.commit()
