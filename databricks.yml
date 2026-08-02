@@ -1,8 +1,16 @@
 # Databricks Asset Bundle (feature F-11).
 #
-# The job definition here must match the one repo 2's Terraform declares. Repo 2 owns
-# the job *resource* and its schedule; this bundle owns the task graph and the wheel
-# version the tasks run.
+# This bundle owns the job outright -- the resource, the task graph, the wheel version
+# and the schedule. Repo 2 previously declared a `databricks_job.daily` as well; both
+# have now been removed there and root law 2 assigns Databricks job definitions to this
+# repo. Neither had ever been applied, so no job was orphaned: had they been, the two
+# would not have collided or errored, they would simply both have existed and run the
+# same pipeline against the same tables.
+#
+# The job belongs here because a job definition is not stable infrastructure. It is the
+# task graph, the entrypoints and the wheel version, all of which change when this
+# repo's code changes -- so owning it here keeps the job version-locked to the code it
+# runs. See docs/10-decisions.md ADR-006.
 #
 # Two Free Edition facts shape everything below:
 #   * serverless compute only -- no cluster blocks, no init scripts, no JVM libraries;
@@ -56,9 +64,27 @@ resources:
 
       # No retries. A failed task here means bad data or a missing migration, and
       # retrying either one burns quota to produce the same failure.
-      # Repo 2 owns the schedule; it stays paused until repo 4's manual checks pass.
       queue:
         enabled: false
+
+      # Owned here since repo 2 dropped its job resource. Created PAUSED, and that is
+      # not a placeholder to tidy up later:
+      #
+      #   * an enabled schedule pointing at unproven code burns the Free Edition daily
+      #     quota, and an exhausted quota shuts compute down for the rest of the day;
+      #   * no run of this pipeline has ever succeeded against the workspace, so the
+      #     first one should be a human watching it, not a timer at 06:00.
+      #
+      # Unpause deliberately, after `tools/dbx_verify` passes:
+      #   databricks jobs update --json '{"schedule":{"pause_status":"UNPAUSED"}}' ...
+      # or flip this to UNPAUSED and redeploy.
+      #
+      # 06:00 UTC: the SEC publishes the daily index the previous evening US Eastern,
+      # so this lands after the file exists but before the working day starts.
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: UTC
+        pause_status: PAUSED
 
       parameters:
         - name: logical_date

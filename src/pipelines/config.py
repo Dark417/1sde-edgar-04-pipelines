@@ -174,16 +174,24 @@ def resolve(job: str, *, overrides: dict[str, str] | None = None) -> Settings:
     if storage_mode not in ("s3", "volume", "local"):
         raise ValueError(f"EDGAR_STORAGE_MODE must be s3|volume|local, got {storage_mode!r}")
 
+    # `dbx/volume_path`, not `dbx/landing_volume`. This repo invented the second name for
+    # the same value and read a key nobody publishes; repo 2 publishes the first and
+    # repo 3 already consumes it, so this repo was the outlier. It never failed loudly
+    # because the lookup falls back to a default on a miss -- the two repos just
+    # disagreed in silence until someone diffed them.
     landing_root = _setting(
         "landing_root",
         env,
-        ssm_key=f"{_SSM_PREFIX}/dbx/landing_volume",
+        ssm_key=f"{_SSM_PREFIX}/dbx/volume_path",
         default=names.LANDING_VOLUME if storage_mode == "volume" else None,
     )
+    # No SSM lookup: where this pipeline keeps its Auto Loader checkpoints is an
+    # implementation detail, not a cross-repo contract. Publishing it would invite
+    # another repo to depend on a path this one should stay free to move.
     checkpoint_root = _setting(
         "checkpoint_root",
         env,
-        ssm_key=f"{_SSM_PREFIX}/dbx/checkpoint_root",
+        ssm_key=None,
         default=f"{landing_root.rstrip('/')}/_checkpoints",
     )
     export_root = _setting("export_root", env, ssm_key=f"{_SSM_PREFIX}/s3/serving_bucket")
