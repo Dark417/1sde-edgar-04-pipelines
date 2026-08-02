@@ -286,20 +286,28 @@ rather than requiring a hand-written `valid_to IS NULL` filter.
 
 ## 7. Tasks
 
-1. **T-1** — repo 4 declares `edgar-lakehouse-contracts`; make `verify_against_published`
-   compare envelope fields as well as tables. *(F-1)*
-2. **T-2** — repo 1: add `models.py` + `schemas.py` as the canonical specs; add
-   `tools/gen_changelog.py`; regenerate `010-bronze/020-silver/040-gold`; add
-   `050-views.yaml` and `060-clustering.yaml`. *(F-2, F-8, F-9)*
-3. **T-3** — repo 4 mirror updated to match, with the new signature/versioning columns. *(F-3…F-7)*
-4. **T-4** — `framework/scd2.py`: extend `merge_scd2` with `version_number` and the four
-   invariants; add `merge_assertions` for facts. *(F-4, F-5, F-6)*
-5. **T-5** — `framework/keys.py`: `surrogate_key()` helper; wire into the three silver builds. *(F-7)*
-6. **T-6** — gold builds record `_source_version`. *(F-10)*
-7. **T-7** — tests: layer signature, SCD-2 invariants, version density, key determinism,
-   view shapes, end-to-end twice. *(F-11, F-12)*
-8. **T-8** — docs: this file, `06-time-travel-runbook.md`, update `02-data-contracts.md`
-   and `10-decisions.md` with ADR-002 (envelope promotion) and ADR-003 (SCD-2 vs time travel).
+> **Ownership.** Global law 2 gives table and view DDL to Liquibase in repo 1, and law 11
+> forbids editing another repo to make a change here work. Every task below that needs a
+> new column, a view or a clustering clause is therefore a **proposal to repo 1**, not
+> work this repo performs. Repo 4 implements only against columns repo 1 has published —
+> anything else makes the contract gate red, which is the gate working correctly.
+
+| task | owner | status |
+| --- | --- | --- |
+| **T-1** declare the wheel; compare envelope *and* tables; assert `provenance() == "published"` *(F-1)* | repo 4 | **done** |
+| **T-2** realign all 13 tables to the consumer-verified shape *(F-2)* | repo 1 | **done** — shipped in `v1.0.0`, verified zero drift |
+| **T-3** `_rescued_data` monitored as a `warn` DQ check *(F-3)* | repo 4 | ready — column already exists |
+| **T-4** layer-signature test over the mirror *(F-11)* | repo 4 | ready — no new columns needed |
+| **T-5** SCD-2 `version_number`; SCD-2 columns on `silver.filing` *(F-4, F-5)* | **repo 1 DDL**, then repo 4 | blocked on repo 1 |
+| **T-6** fact `assertion_version` / `superseded_by_accession` / `is_current_assertion` *(F-6)* | **repo 1 DDL**, then repo 4 | blocked on repo 1 |
+| **T-7** `<entity>_sk` surrogate-key columns *(F-7)* | **repo 1 DDL**, then repo 4 | blocked on repo 1 |
+| **T-8** liquid clustering *(F-8)* | **repo 1 DDL** | blocked on repo 1 |
+| **T-9** six gold views *(F-9)* | **repo 1 DDL** | blocked on repo 1 |
+| **T-10** gold records `_source_version` *(F-10)* | **repo 1 DDL**, then repo 4 | blocked on repo 1 |
+| **T-11** merge/view/e2e tests *(F-12)* | repo 4 | follows T-5…T-10 |
+
+`docs/07-repo1-ddl-proposal.md` carries the exact changesets being requested, so repo 1
+can apply them without re-deriving the design from this document.
 
 ## 8. Test plan
 

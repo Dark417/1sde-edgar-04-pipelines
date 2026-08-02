@@ -25,6 +25,7 @@ copy of repo 1's source.
 from __future__ import annotations
 
 import importlib
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from types import ModuleType
 from typing import Final, Literal
@@ -86,42 +87,111 @@ class Discrepancy:
         return f"[{self.kind}] {self.name}: {self.detail}"
 
 
+def _published_column_specs() -> dict[str, dict[str, tuple[str, bool]]] | Discrepancy:
+    """Published table shapes as ``{fqn: {column: (type_sql, nullable)}}``.
+
+    Repo 1 publishes these as ``spark.schemas.COLUMN_SPECS``, a mapping of fqn to a
+    tuple of ``(name, type_sql, nullable)`` triples. It is a submodule that the package
+    root does not import, so it has to be imported explicitly rather than reached
+    through the parent.
+    """
+    try:
+        module = importlib.import_module(f"{PUBLISHED_PACKAGE}.spark.schemas")
+        raw: Mapping[str, Iterable[tuple[str, str, bool]]] = module.COLUMN_SPECS
+    except (ImportError, AttributeError) as exc:
+        return Discrepancy("api", PUBLISHED_PACKAGE, f"no spark.schemas.COLUMN_SPECS ({exc})")
+
+    return {
+        fqn: {name: (type_sql, nullable) for name, type_sql, nullable in cols}
+        for fqn, cols in raw.items()
+    }
+
+
 def verify_against_published() -> list[Discrepancy]:
     """Diff the mirror against the published contracts wheel.
 
     Returns an empty list when the wheel is not installed -- absence is reported by
-    :func:`provenance`, not by a fake discrepancy, so that CI can distinguish "not
-    published yet" (expected today) from "published and we drifted" (must block).
+    :func:`provenance`, not by a fake discrepancy.
 
-    The comparison is one-directional on purpose: every table and column **this repo
-    touches** must exist in the wheel with the same type. Columns the wheel has and we
-    do not are fine -- repo 1 may serve other consumers.
+    **That escape hatch is why v0.1.0 drifted undetected.** The wheel was never a
+    declared dependency, so this returned ``[]`` on every CI run and the contract-compat
+    gate passed while the mirror disagreed with repo 1 on all eleven envelope field
+    names and on every one of the thirteen tables. The wheel is now a dev dependency
+    (see pyproject) and ``tests/test_contract_compat.py`` asserts
+    ``provenance() == "published"``, so the empty-list path can no longer be reached in
+    CI. Keep both halves: the escape hatch is what lets a Databricks job import this
+    package without the wheel, and the test is what stops it hiding drift.
+
+    The table comparison is one-directional on purpose: every table and column **this
+    repo touches** must exist in the wheel with the same type. Columns the wheel has and
+    we do not are fine -- repo 1 may serve other consumers.
+
+    The envelope comparison is bidirectional: the envelope is a wire format shared with
+    repo 3, so a field present on only one side is drift in either direction.
     """
     published = _published()
     if published is None:
         return []
 
     out: list[Discrepancy] = []
-    try:
-        published_tables: dict[str, object] = dict(published.schemas.TABLES)
-    except AttributeError as exc:
-        return [Discrepancy("api", PUBLISHED_PACKAGE, f"missing schemas.TABLES ({exc})")]
+
+    specs = _published_column_specs()
+    if isinstance(specs, Discrepancy):
+        return [specs]
 
     for fqn, spec in schemas.TABLES.items():
-        their = published_tables.get(fqn)
-        if their is None:
+        their_cols = specs.get(fqn)
+        if their_cols is None:
             out.append(Discrepancy("table", fqn, "absent from published contracts"))
             continue
-        their_cols = {c.name: c.type_sql for c in their.columns}  # type: ignore[attr-defined]
         for col in spec.columns:
-            if col.name not in their_cols:
+            their = their_cols.get(col.name)
+            if their is None:
                 out.append(Discrepancy("column", f"{fqn}.{col.name}", "absent from published"))
-            elif their_cols[col.name].upper() != col.type_sql.upper():
+                continue
+            their_type, their_nullable = their
+            if their_type.upper() != col.type_sql.upper():
                 out.append(
                     Discrepancy(
                         "type",
                         f"{fqn}.{col.name}",
-                        f"mirror={col.type_sql} published={their_cols[col.name]}",
+                        f"mirror={col.type_sql} published={their_type}",
                     )
                 )
+            elif their_nullable != col.nullable:
+                out.append(
+                    Discrepancy(
+                        "nullability",
+                        f"{fqn}.{col.name}",
+                        f"mirror nullable={col.nullable} published nullable={their_nullable}",
+                    )
+                )
+
+    out.extend(_verify_envelope(published))
+    return out
+
+
+def _verify_envelope(published: ModuleType) -> list[Discrepancy]:
+    """Compare the landing envelope field-by-field, in both directions."""
+    try:
+        their_fields: dict[str, str] = dict(
+            importlib.import_module(f"{PUBLISHED_PACKAGE}.envelope").ENVELOPE_FIELDS
+        )
+    except (ImportError, AttributeError) as exc:
+        return [Discrepancy("api", PUBLISHED_PACKAGE, f"no envelope.ENVELOPE_FIELDS ({exc})")]
+
+    out: list[Discrepancy] = []
+    ours = envelope.ENVELOPE_FIELDS
+    for name, type_sql in ours.items():
+        if name not in their_fields:
+            out.append(Discrepancy("envelope", name, "bronze reads it; repo 1 does not publish it"))
+        elif their_fields[name].upper() != type_sql.upper():
+            out.append(
+                Discrepancy(
+                    "envelope-type", name, f"mirror={type_sql} published={their_fields[name]}"
+                )
+            )
+    for name in their_fields:
+        if name not in ours:
+            out.append(Discrepancy("envelope", name, "repo 1 publishes it; bronze ignores it"))
     return out

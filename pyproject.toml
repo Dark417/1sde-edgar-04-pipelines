@@ -21,7 +21,15 @@ dependencies = [
 [project.optional-dependencies]
 # Local development: the Spark/Delta versions that approximate the serverless runtime,
 # plus the tooling needed to fetch a test subset of EDGAR without repo 3.
+#
+# `edgar-lakehouse-contracts` is a DEV dependency, not a runtime one, and that is
+# deliberate. At runtime the in-repo mirror is what executes, so a Databricks job never
+# needs the wheel installed. In CI the wheel must be present, because the
+# contract-compat gate can only compare the mirror against something that exists --
+# without it `verify_against_published()` returns [] and the gate passes vacuously,
+# which is exactly how the v0.1.0 envelope drifted on all eleven field names undetected.
 dev = [
+  "edgar-lakehouse-contracts==1.0.0",
   "pyspark==4.0.1",
   "delta-spark==4.0.0",
   "pytest>=8.2",
