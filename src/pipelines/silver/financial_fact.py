@@ -167,8 +167,22 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
     )
     run_ctx.record(grain_metrics, prefix="silver.financial_fact.grain.")
 
+    # Provisional assertion columns, corrected by restamp_assertions() below.
+    #
+    # They cannot be left null and stamped afterwards: assertion_version and
+    # is_current_assertion are NOT NULL in the contract, so the insert fails before any
+    # restamping happens. That is not a constraint to work around -- NOT NULL is what
+    # makes "exactly one current assertion per fact_sk" enforceable at all.
+    #
+    # 1/true is the right provisional value because it is the truth for the common case
+    # (a period asserted once) and is corrected within the same run for the case it is
+    # wrong about. A restatement is briefly marked current between the merge and the
+    # restamp; both run inside this function, so nothing outside observes that window.
     source = align_to_spec(
         deduped.withColumn("fact_sk", surrogate_key(*FACT_SK_PARTS))
+        .withColumn("assertion_version", F.lit(1))
+        .withColumn("is_current_assertion", F.lit(True))
+        .withColumn("superseded_by_accession", F.lit(None).cast("string"))
         .withColumn("_first_seen_ts", F.current_timestamp())
         .withColumn("_last_seen_ts", F.current_timestamp()),
         SPEC,
