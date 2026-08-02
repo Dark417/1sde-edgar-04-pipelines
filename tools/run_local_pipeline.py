@@ -60,9 +60,7 @@ def discover_logical_dates(landing_root: Path) -> list[str]:
     the SCD-2 close-and-open path rather than collapsing into a single batch.
     """
     dates = {
-        part.name.split("=", 1)[1]
-        for part in landing_root.rglob("logical_date=*")
-        if part.is_dir()
+        part.name.split("=", 1)[1] for part in landing_root.rglob("logical_date=*") if part.is_dir()
     }
     return sorted(dates)
 
@@ -86,7 +84,9 @@ def run_all(spark: Any, settings: Settings, logical_dates: list[str]) -> dict[st
     summary: dict[str, Any] = {"logical_dates": logical_dates, "stages": {}}
 
     for logical_date in logical_dates:
-        day_settings = replace(settings, logical_date=logical_date, run_id=run_id_for("local", logical_date))
+        day_settings = replace(
+            settings, logical_date=logical_date, run_id=run_id_for("local", logical_date)
+        )
         assert_tables_exist(
             spark,
             [
@@ -155,11 +155,15 @@ def report(spark: Any, settings: Settings) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--landing", default="data/landing")
     parser.add_argument("--warehouse", default=".local/warehouse")
     parser.add_argument("--logical-dates", default="", help="comma-separated; default: all present")
-    parser.add_argument("--sql", default=None, help="run one query against the local warehouse and exit")
+    parser.add_argument(
+        "--sql", default=None, help="run one query against the local warehouse and exit"
+    )
     parser.add_argument("--summary-out", default=None, help="write the stage summaries as JSON")
     args = parser.parse_args(argv)
 
@@ -178,12 +182,13 @@ def main(argv: list[str] | None = None) -> int:
         spark.sql(args.sql).show(50, truncate=False)
         return 0
 
-    logical_dates = (
-        [d.strip() for d in args.logical_dates.split(",") if d.strip()]
-        or discover_logical_dates(landing)
-    )
+    logical_dates = [
+        d.strip() for d in args.logical_dates.split(",") if d.strip()
+    ] or discover_logical_dates(landing)
     if not logical_dates:
-        parser.error(f"no logical_date= partitions found under {landing}; run fetch_test_data.py first")
+        parser.error(
+            f"no logical_date= partitions found under {landing}; run fetch_test_data.py first"
+        )
 
     created = create_all(spark, LOCAL_CATALOG)
     print(f"local DDL applied: {len(created)} tables (stand-in for repo 1 Liquibase)")

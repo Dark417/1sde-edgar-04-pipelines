@@ -41,6 +41,8 @@ if str(_REPO_ROOT / "src") not in sys.path:
 
 from edgar_lakehouse_contracts import names, schemas  # noqa: E402
 
+from pipelines import streams  # noqa: E402
+
 OK = "ok"
 MISSING = "missing"
 ERROR = "error"
@@ -129,9 +131,7 @@ def check_catalog_and_schemas(ws: Workspace, catalog: str) -> list[Check]:
         names.SCHEMA_GOLD,
     }
     missing = sorted(wanted - schema_names)
-    checks.append(
-        Check("schemas", OK if not missing else MISSING, "repo 2 owns these", missing)
-    )
+    checks.append(Check("schemas", OK if not missing else MISSING, "repo 2 owns these", missing))
     return checks
 
 
@@ -193,8 +193,8 @@ def check_landing(ws: Workspace, catalog: str) -> list[Check]:
     # Repo 3's output. Absent is not fatal -- it means there is nothing to ingest yet,
     # which is a different problem from a missing table.
     present, empty = [], []
-    for stream_name in names.STREAMS:
-        path = names.landing_path(names.VOLUME_LANDING, stream_name)
+    for stream_name in streams.STREAMS:
+        path = streams.landing_path(names.VOLUME_LANDING, stream_name)
         code, body = ws.get(f"/api/2.0/fs/directories{path}")
         if code == 200 and body.get("contents"):
             present.append(f"{stream_name}: {len(body['contents'])} entries")
@@ -234,7 +234,9 @@ def check_jobs(ws: Workspace) -> Check:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--host", default=os.environ.get("DATABRICKS_HOST"))
     parser.add_argument("--token", default=os.environ.get("DATABRICKS_TOKEN"))
     parser.add_argument("--catalog", default=os.environ.get("EDGAR_CATALOG", names.CATALOG))

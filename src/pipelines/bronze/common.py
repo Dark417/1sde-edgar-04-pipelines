@@ -17,6 +17,7 @@ from typing import Any
 from edgar_lakehouse_contracts import names, schemas
 from edgar_lakehouse_contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM
 
+from pipelines import streams
 from pipelines.config import Settings, batch_id_for
 from pipelines.framework import autoloader
 from pipelines.framework.metrics import JobRun
@@ -90,7 +91,7 @@ def ingest_stream(
     adds zero rows, which is F-5's acceptance criterion and the reason the ledger
     (or Auto Loader's checkpoint) exists.
     """
-    stream = names.stream(stream_name)
+    stream = streams.stream(stream_name)
     spec = schemas.table(f"{names.CATALOG}.{names.SCHEMA_BRONZE}.{stream.bronze_table}")
     target = settings.table(spec.fqn)
 
@@ -123,7 +124,9 @@ def ingest_stream(
         query = (
             prepared.writeStream.format("delta")
             .outputMode("append")
-            .option("checkpointLocation", names.checkpoint_path(settings.checkpoint_root, stream_name))
+            .option(
+                "checkpointLocation", streams.checkpoint_path(settings.checkpoint_root, stream_name)
+            )
             .trigger(availableNow=True)
             .toTable(target)
         )

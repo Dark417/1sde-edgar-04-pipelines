@@ -44,14 +44,19 @@ def normalize_accession(col: Any) -> Any:
 
     trimmed = F.trim(col)
     digits = F.regexp_replace(trimmed, "[^0-9]", "")
-    return F.when(
-        trimmed.rlike(r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$"), trimmed
-    ).when(
-        F.length(digits) == 18,
-        F.concat_ws(
-            "-", F.substring(digits, 1, 10), F.substring(digits, 11, 2), F.substring(digits, 13, 6)
-        ),
-    ).otherwise(F.lit(None).cast("string"))
+    return (
+        F.when(trimmed.rlike(r"^[0-9]{10}-[0-9]{2}-[0-9]{6}$"), trimmed)
+        .when(
+            F.length(digits) == 18,
+            F.concat_ws(
+                "-",
+                F.substring(digits, 1, 10),
+                F.substring(digits, 11, 2),
+                F.substring(digits, 13, 6),
+            ),
+        )
+        .otherwise(F.lit(None).cast("string"))
+    )
 
 
 def pad_cik(col: Any) -> Any:
@@ -139,9 +144,7 @@ def run_dq_and_quarantine(
     The quarantine write happens unconditionally -- writing zero rows is cheap, and
     branching on a count is how a quarantine table quietly stops being written to.
     """
-    passed, quarantined, metrics = apply_dq(
-        df, checks, run.run_id, source_table=target_spec.fqn
-    )
+    passed, quarantined, metrics = apply_dq(df, checks, run.run_id, source_table=target_spec.fqn)
     run.record(metrics, prefix=f"{metrics_prefix}.")
     quarantine_spec = schemas.table(
         f"{target_spec.catalog}.{target_spec.schema}.{target_spec.name}_quarantine"
