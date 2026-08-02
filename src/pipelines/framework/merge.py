@@ -96,7 +96,10 @@ def hash_diff(df: Any, columns: Sequence[str], *, alias: str = "_hash_diff") -> 
         dtype = dtypes.get(name, "string")
         if dtype.startswith("array"):
             normalized = F.concat_ws(
-                ",", F.transform(F.array_sort(col), lambda x: F.coalesce(x.cast("string"), F.lit(NULL_SENTINEL)))
+                ",",
+                F.transform(
+                    F.array_sort(col), lambda x: F.coalesce(x.cast("string"), F.lit(NULL_SENTINEL))
+                ),
             )
         elif dtype.startswith("map"):
             # Map iteration order is not stable either; sort by key.
@@ -185,8 +188,8 @@ def merge_scd1(
     dt = _delta_table(spark, target_table)
     src = _project_to_target(src, dt)
     updatable = tuple(c for c in src.columns if c not in keys and c != "_first_seen_ts")
-    update_cols = updatable if update_cols is None else tuple(
-        c for c in update_cols if c in updatable
+    update_cols = (
+        updatable if update_cols is None else tuple(c for c in update_cols if c in updatable)
     )
     condition = " AND ".join(f"t.`{k}` <=> s.`{k}`" for k in keys)
     insert_values = {c: F.col(f"s.`{c}`") for c in src.columns}
@@ -266,6 +269,29 @@ def merge_scd2(
     rows_source = int(src.count())
 
     key_match = " AND ".join(f"t.`{k}` <=> s.`{k}`" for k in natural_key)
+
+    # ---- version_number: dense and 1-based per natural key.
+    #
+    # Computed here rather than in the MERGE because Delta cannot reference an aggregate
+    # of the target inside a merge action. The highest stored version per key is read
+    # once, before either pass, which is safe because pass 1 only ever closes rows -- it
+    # never inserts, so the maximum cannot move underneath us.
+    #
+    # Only the INSERT path consumes this. An unchanged version keeps its stored number
+    # (pass 2 updates just _last_seen_ts), and a same-day re-version updates in place
+    # without touching version_number -- both correct: the ordinal identifies the
+    # version, and neither of those creates one.
+    existing_max = (
+        spark.table(target_table)
+        .groupBy(*natural_key)
+        .agg(F.max("version_number").alias("_prior_version"))
+    )
+    src = (
+        src.join(existing_max, on=list(natural_key), how="left")
+        .withColumn("version_number", F.coalesce(F.col("_prior_version"), F.lit(0)) + 1)
+        .drop("_prior_version")
+    )
+
     dt = _delta_table(spark, target_table)
     src = _project_to_target(src, dt)
 

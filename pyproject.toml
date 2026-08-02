@@ -29,7 +29,7 @@ dependencies = [
 # without it `verify_against_published()` returns [] and the gate passes vacuously,
 # which is exactly how the v0.1.0 envelope drifted on all eleven field names undetected.
 dev = [
-  "edgar-lakehouse-contracts==1.0.0",
+  "edgar-lakehouse-contracts==1.1.0",
   "pyspark==4.0.1",
   "delta-spark==4.0.0",
   "pytest>=8.2",

@@ -13,11 +13,12 @@ from typing import Any
 from pipelines.config import Settings
 from pipelines.contracts import dq as dq_registry
 from pipelines.contracts import names, schemas
-from pipelines.framework.merge import MergeStats, merge_scd1
+from pipelines.framework.delta_ops import rollback_on_failure
+from pipelines.framework.keys import surrogate_key
+from pipelines.framework.merge import MergeStats, merge_scd2
 from pipelines.framework.metrics import JobRun
 
 from .common import (
-    align_to_spec,
     base_form_type,
     is_amendment,
     normalize_accession,
@@ -28,9 +29,26 @@ from .common import (
     run_dq_and_quarantine,
 )
 
-__all__ = ["build", "run"]
+__all__ = ["TRACKED_COLUMNS", "build", "run"]
 
 SPEC = schemas.SILVER_FILING
+
+#: A change in any of these opens a new SCD-2 version of the filing.
+#:
+#: Declared, not inferred. Inferring "every non-key column" would mean a new upstream
+#: field silently rewrites history the first time it appears. These three are the ones
+#: that actually change when a filing is amended: the form gains an /A suffix, the filer
+#: name can be corrected, and the primary document is republished at a new URL.
+#:
+#: `filed_date` is deliberately absent -- the original filing date is a property of the
+#: original submission, and an amendment is a *new* version, not a re-dating of the old.
+TRACKED_COLUMNS: tuple[str, ...] = (
+    "form_type",
+    "base_form_type",
+    "is_amendment",
+    "company_name",
+    "primary_doc_url",
+)
 
 
 def build(bronze_df: Any) -> Any:
@@ -45,6 +63,8 @@ def build(bronze_df: Any) -> Any:
 
     form = normalize_form_type(F.col("form_type"))
     return bronze_df.select(
+        # filing_sk identifies the filing across all of its versions.
+        surrogate_key(normalize_accession(F.col("accession_number"))).alias("filing_sk"),
         normalize_accession(F.col("accession_number")).alias("accession_number"),
         pad_cik(F.col("cik")).alias("cik"),
         F.trim(F.col("company_name")).alias("company_name"),
@@ -61,7 +81,6 @@ def build(bronze_df: Any) -> Any:
 
 def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
     """Read bronze, normalize, run DQ, MERGE into ``silver.filing``."""
-    from pyspark.sql import functions as F
 
     bronze_table = settings.table(schemas.BRONZE_FILING_INDEX_RAW.fqn)
     target = settings.table(SPEC.fqn)
@@ -81,23 +100,24 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
         metrics_prefix="silver.filing",
     )
 
-    source = align_to_spec(
-        passed.withColumn("_first_seen_ts", F.current_timestamp()).withColumn(
-            "_last_seen_ts", F.current_timestamp()
-        ),
-        SPEC,
-    )
-    stats = merge_scd1(
-        spark,
-        source,
-        target,
-        keys=("accession_number",),
-        # Latest sighting wins when a filing appears in two daily indexes.
-        # _source_file breaks the tie when one logical date lands the same key
-        # twice (a re-fetch). Without a total ordering, row_number() picks whichever
-        # row the scan reached first and the result stops being reproducible.
-        dedupe_order_by=("logical_date", "_ingest_batch_id", "_source_file"),
-    )
+    # SCD-2 since contracts v1.1.0. This was merge_scd1, which overwrote in place -- so
+    # when a 10-K/A superseded a 10-K, the original form_type and primary_doc_url were
+    # gone. That is the history gold.restatement_event reads, so losing it quietly
+    # removed the evidence for the restatements the mart is supposed to report.
+    with rollback_on_failure(spark, target):
+        stats = merge_scd2(
+            spark,
+            passed,
+            target,
+            natural_key=("accession_number",),
+            tracked_cols=TRACKED_COLUMNS,
+            logical_date=settings.logical_date,
+            # Latest sighting wins when a filing appears in two daily indexes.
+            # _source_file breaks the tie when one logical date lands the same key
+            # twice (a re-fetch). Without a total ordering, row_number() picks whichever
+            # row the scan reached first and the result stops being reproducible.
+            dedupe_order_by=("logical_date", "_ingest_batch_id", "_source_file"),
+        )
     run_ctx.record(stats.as_metrics("silver.filing.merge"))
     run_ctx.add(rows_out=stats.rows_target_after)
     return stats

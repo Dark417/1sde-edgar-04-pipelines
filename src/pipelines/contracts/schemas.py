@@ -180,11 +180,20 @@ SILVER_FILING = TableSpec(
         C("filed_date", "DATE", False),
         C("primary_doc_url", "STRING", True),
         C("logical_date", "DATE", False, "Landing partition the row was last seen in"),
+        # SCD-2, added in contracts v1.1.0 (changeset 060). Before this the table was
+        # overwrite-on-merge, so an amendment destroyed the pre-amendment row -- which is
+        # the history gold.restatement_event is built from.
+        C("filing_sk", "STRING", False, "sha2 of accession_number. Identifies the filing."),
+        C("version_number", "INT", False, "Dense, 1-based per accession_number"),
+        C("valid_from", "DATE", False, "SCD-2 open bound, inclusive"),
+        C("valid_to", "DATE", True, "SCD-2 close bound; null while current"),
+        C("is_current", "BOOLEAN", False, "Exactly one true per accession -- reject_batch"),
+        C("_hash_diff", "STRING", False, "sha2 over FILING_TRACKED_COLUMNS"),
         *SILVER_LINEAGE_COLUMNS,
     ),
     changeset=_SILVER_CHANGESET,
     business_key=("accession_number",),
-    comment="One row per filing. MERGE on accession_number.",
+    comment="SCD-2 filing dimension. One row per version of a filing.",
 )
 
 SILVER_FILING_QUARANTINE = _quarantine("filing_quarantine", _SILVER_CHANGESET, "silver.filing")
@@ -206,6 +215,10 @@ SILVER_COMPANY = TableSpec(
         C("tickers", "ARRAY<STRING>", True, "Sorted before hashing -- see _hash_diff"),
         C("exchanges", "ARRAY<STRING>", True, "Sorted before hashing -- see _hash_diff"),
         C("former_names", "ARRAY<STRING>", True, "Sorted before hashing -- see _hash_diff"),
+        # v1.1.0 (changeset 060): the interval was already here, the ordinal and the
+        # surrogate key are new.
+        C("company_sk", "STRING", False, "sha2 of cik. Identifies the company, not the version."),
+        C("version_number", "INT", False, "Dense, 1-based per cik"),
         C("valid_from", "DATE", False, "SCD-2 open bound, inclusive"),
         C("valid_to", "DATE", True, "SCD-2 close bound, inclusive; null while current"),
         C("is_current", "BOOLEAN", False, "Exactly one true per cik -- reject_batch"),
@@ -245,6 +258,13 @@ SILVER_FINANCIAL_FACT = TableSpec(
         C("filed_date", "DATE", False),
         C("frame", "STRING", True),
         C("logical_date", "DATE", False),
+        # NOT YET ADOPTED: contracts v1.1.0 adds fact_sk, assertion_version,
+        # is_current_assertion and superseded_by_accession to this table (changeset 060).
+        # They are deliberately absent here until silver/financial_fact.py populates
+        # them. The contract gate compares one-directionally -- columns repo 1 has and
+        # this repo does not are fine -- so declaring them before writing them would only
+        # produce rows with nulls in NOT NULL columns. Adopt the column and the code that
+        # fills it in the same change.
         *SILVER_LINEAGE_COLUMNS,
     ),
     changeset=_SILVER_CHANGESET,

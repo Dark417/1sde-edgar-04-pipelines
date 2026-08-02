@@ -17,6 +17,7 @@ from pipelines.contracts import dq as dq_registry
 from pipelines.contracts import names, schemas
 from pipelines.framework.delta_ops import rollback_on_failure
 from pipelines.framework.dq import apply_dq
+from pipelines.framework.keys import surrogate_key
 from pipelines.framework.merge import MergeStats, merge_scd2
 from pipelines.framework.metrics import JobRun
 
@@ -56,6 +57,10 @@ def build(bronze_df: Any) -> Any:
 
     doc = F.from_json(F.col("payload_json"), SUBMISSIONS_DDL)
     return bronze_df.select(
+        # company_sk identifies the company, not the version -- it is derived from the
+        # natural key alone, so every SCD-2 version of one company shares it and gold can
+        # join on a single column then filter is_current.
+        surrogate_key(pad_cik(F.coalesce(doc.getField("cik"), F.col("cik")))).alias("company_sk"),
         pad_cik(F.coalesce(doc.getField("cik"), F.col("cik"))).alias("cik"),
         F.trim(doc.getField("name")).alias("company_name"),
         doc.getField("sic").alias("sic"),
