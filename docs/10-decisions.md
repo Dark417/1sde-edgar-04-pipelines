@@ -199,3 +199,59 @@ installing PySpark into a Databricks job shadows the runtime build.
 
 **Reversal.** When the serverless runtime's Spark version is confirmed, pin the dev
 extra to match and provide a matching JDK.
+
+## ADR-006 — The Databricks job is owned by this repo's bundle, not by repo 2
+
+**Status:** accepted here, **not yet actioned in repo 2.**
+
+**Context.** Two repos currently create a Databricks job for the same pipeline:
+
+* repo 2, `modules/databricks/main.tf` → `databricks_job.daily`
+* repo 4, `databricks.yml` → `edgar-medallion-${bundle.target}`
+
+That is a direct breach of global law 2 (one owner per object; "jobs: Terraform (repo 2)").
+The two designs were never reconciled — repo 2 also publishes
+`/edgar-lakehouse/dbx/job_id` described as "consumed by repo 4 to update the job's wheel
+version", which is the *other* model, where repo 2 owns the job and repo 4 only bumps a
+pin. Nobody noticed because neither has ever been applied. On first apply they would not
+conflict or error; they would simply both exist, and two jobs would run the same pipeline
+against the same tables.
+
+**Decision.** The job belongs to **repo 4's Databricks Asset Bundle**.
+
+The job definition is not stable infrastructure — it is the task graph, the entrypoints,
+and the wheel version, all of which change whenever this repo's code changes. Owning it
+here keeps the job version-locked to the code it runs, so a task rename is one PR rather
+than two in dependency order. It also makes `databricks bundle run` available for manual
+and CI runs, which is the idiomatic Databricks path.
+
+Repo 2 keeps everything whose lifecycle is genuinely slower: catalog, schemas, volumes,
+grants, and the SSM interface.
+
+**Consequences — repo 2 must change, and this repo cannot do it (law 11):**
+
+1. remove `databricks_job.daily` from `modules/databricks`;
+2. remove the `/edgar-lakehouse/dbx/job_id` parameter, which has no consumer under this
+   model;
+3. keep `databricks_grants` — the bundle deploys a job, it does not grant itself access.
+
+Until that lands, applying repo 2 and deploying this bundle produces two jobs. Repo 2
+has an open PR at the time of writing, so this is recorded rather than patched across the
+boundary.
+
+**Also unreconciled, same root cause.** Two of the three SSM keys this repo reads are not
+published by repo 2:
+
+| repo 4 reads | repo 2 publishes |
+|---|---|
+| `/edgar-lakehouse/dbx/landing_volume` | `/edgar-lakehouse/dbx/volume_path` |
+| `/edgar-lakehouse/dbx/checkpoint_root` | *nothing* |
+| `/edgar-lakehouse/s3/serving_bucket` | matches |
+
+Invisible today because config resolves `env var → SSM → fail` and the env vars shadow
+SSM in every path currently exercised. It would surface the first time the scheduled job
+runs without them.
+
+**Reversal.** If job definitions ever need to be reviewed through the same approval path
+as IAM and buckets, move ownership back to Terraform and reduce this repo to publishing a
+wheel plus a version pin.
