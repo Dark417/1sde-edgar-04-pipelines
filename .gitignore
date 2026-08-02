@@ -224,3 +224,9 @@ __marimo__/
 # harness and docs refer to. See docs/03-local-test-harness.md.
 # Deploy credentials. .env.example is the committed template.
 .env
+docs/LOCAL-VALUES.md
+*.tfstate*
+changelog/liquibase.properties
+*.pem
+*.key
+plan.txt
