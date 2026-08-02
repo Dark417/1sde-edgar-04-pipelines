@@ -11,6 +11,7 @@ from typing import Any
 
 import pytest
 
+from pipelines.framework.keys import surrogate_key
 from pipelines.framework.merge import hash_diff, merge_scd1, merge_scd2
 
 pytestmark = pytest.mark.spark
@@ -62,7 +63,7 @@ def _company(
             )
         ],
         COMPANY_DDL,
-    )
+    ).withColumn("company_sk", surrogate_key("cik"))
 
 
 def _filings(spark: Any, rows: list[tuple[str, str, str]]) -> Any:
@@ -86,7 +87,7 @@ def _filings(spark: Any, rows: list[tuple[str, str, str]]) -> Any:
         "accession_number STRING, cik STRING, company_name STRING, form_type STRING, "
         "base_form_type STRING, is_amendment BOOLEAN, filed_date DATE, "
         "primary_doc_url STRING, logical_date DATE, _ingest_batch_id STRING, _source_file STRING",
-    )
+    ).withColumn("filing_sk", surrogate_key("accession_number"))
 
 
 # ----------------------------------------------------------------------------- hash
