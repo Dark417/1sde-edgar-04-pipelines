@@ -22,9 +22,13 @@ FACT_DDL = (
     "fiscal_year INT, fiscal_period STRING, form_type STRING, filed_date DATE"
 )
 
+# `is_current` is required because silver.filing became SCD-2 in contracts v1.1.0 and the
+# gold builders now filter on it. These frames stand in for the current version of each
+# filing, so it is always true here; the SCD-2 behaviour itself is covered in
+# tests/test_framework_merge.py rather than re-tested through gold.
 FILING_DDL = (
     "accession_number STRING, cik STRING, company_name STRING, form_type STRING, "
-    "base_form_type STRING, is_amendment BOOLEAN, filed_date DATE"
+    "base_form_type STRING, is_amendment BOOLEAN, filed_date DATE, is_current BOOLEAN"
 )
 
 
@@ -95,9 +99,13 @@ def test_financials_current_same_day_tie_is_broken_deterministically(spark: Any)
 def test_filing_activity_groups_amendments_with_their_base_form(spark: Any) -> None:
     filings = spark.createDataFrame(
         [
-            ("a", "0000000001", "A", "10-K", "10-K", False, date(2026, 7, 31)),
-            ("b", "0000000002", "B", "10-K/A", "10-K", True, date(2026, 7, 31)),
-            ("c", "0000000001", "A", "8-K", "8-K", False, date(2026, 7, 31)),
+            ("a", "0000000001", "A", "10-K", "10-K", False, date(2026, 7, 31), True),
+            ("b", "0000000002", "B", "10-K/A", "10-K", True, date(2026, 7, 31), True),
+            ("c", "0000000001", "A", "8-K", "8-K", False, date(2026, 7, 31), True),
+            # A superseded version of "a". Gold must not count it: silver.filing holds
+            # one row per version now, so an unfiltered count inflates exactly on the
+            # days these marts exist to explain.
+            ("a", "0000000001", "A", "10-K", "10-K", False, date(2026, 7, 31), False),
         ],
         FILING_DDL,
     )

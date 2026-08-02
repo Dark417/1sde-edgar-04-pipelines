@@ -139,31 +139,42 @@ def test_two_current_rows_fail_the_batch_and_the_table_is_restored(
     """
     target = settings.table("edgar.silver.company")
     _land(
-        spark, settings, landing, job_run_ctx,
-        [submissions_payload("0000320193", "Apple Inc.")], part="part-00000",
+        spark,
+        settings,
+        landing,
+        job_run_ctx,
+        [submissions_payload("0000320193", "Apple Inc.")],
+        part="part-00000",
     )
     company.run(spark, settings, job_run_ctx)
     before = spark.table(target).count()
 
     # Corrupt the dimension the way a bad merge would: a second current row.
+    #
+    # The projection is derived from the live schema rather than spelled out. It used to
+    # be a hand-written column list, which broke the moment contracts v1.1.0 added
+    # company_sk and version_number -- the test failed on INSERT arity while asserting
+    # nothing about the invariant it exists to cover. A fixture that has to be edited
+    # every time a column is added will eventually be edited wrongly.
+    def _clone(**overrides: str) -> str:
+        return ", ".join(overrides.get(c, f"`{c}`") for c in spark.table(target).columns)
+
+    spark.sql(f"INSERT INTO {target} SELECT {_clone(cik=chr(39) + 'ZZZZ' + chr(39))} FROM {target}")
     spark.sql(
-        f"INSERT INTO {target} SELECT 'ZZZZ' AS cik, company_name, sic, sic_description, ein, "
-        "entity_type, state_of_incorporation, fiscal_year_end, tickers, exchanges, former_names, "
-        "valid_from, valid_to, is_current, _hash_diff, _first_seen_ts, _last_seen_ts, "
-        f"_ingest_batch_id, _source_file FROM {target}"
-    )
-    spark.sql(
-        f"INSERT INTO {target} SELECT 'ZZZZ' AS cik, company_name, sic, sic_description, ein, "
-        "entity_type, state_of_incorporation, fiscal_year_end, tickers, exchanges, former_names, "
-        "valid_from, valid_to, is_current, 'other-hash' AS _hash_diff, _first_seen_ts, "
-        f"_last_seen_ts, _ingest_batch_id, _source_file FROM {target} WHERE cik = 'ZZZZ'"
+        f"INSERT INTO {target} "
+        f"SELECT {_clone(cik=chr(39) + 'ZZZZ' + chr(39), _hash_diff=chr(39) + 'other-hash' + chr(39))} "
+        f"FROM {target} WHERE cik = 'ZZZZ'"
     )
     corrupted = spark.table(target).count()
     assert corrupted == before + 2
 
     _land(
-        spark, settings, landing, job_run_ctx,
-        [submissions_payload("0000320193", "Apple Inc.")], part="part-00003",
+        spark,
+        settings,
+        landing,
+        job_run_ctx,
+        [submissions_payload("0000320193", "Apple Inc.")],
+        part="part-00003",
     )
     with pytest.raises(DQBatchFailure, match="company_exactly_one_current"):
         company.run(spark, settings, job_run_ctx)
@@ -176,8 +187,14 @@ def test_invariant_query_reports_one_current_per_cik(
     spark: Any, settings: Settings, landing: Any, job_run_ctx: Any
 ) -> None:
     _land(
-        spark, settings, landing, job_run_ctx,
-        [submissions_payload("0000320193", "Apple Inc."), submissions_payload("0000789019", "Microsoft")],
+        spark,
+        settings,
+        landing,
+        job_run_ctx,
+        [
+            submissions_payload("0000320193", "Apple Inc."),
+            submissions_payload("0000789019", "Microsoft"),
+        ],
         part="part-00000",
     )
     company.run(spark, settings, job_run_ctx)
