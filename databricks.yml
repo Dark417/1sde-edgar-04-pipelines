@@ -101,6 +101,11 @@ resources:
         #     --params landing_root=/Volumes/edgar/landing/edgar/_seed
         - name: landing_root
           default: ""
+        # Also empty by default -> resolves via SSM in a provisioned environment. Set it
+        # at run time to exercise the pipeline before repo 2 publishes the parameter; a
+        # /Volumes path keeps the run free of any AWS dependency.
+        - name: export_root
+          default: ""
 
       environments:
         - environment_key: serverless
@@ -117,7 +122,13 @@ resources:
           python_wheel_task:
             package_name: edgar_pipelines
             entry_point: edgar-pipelines
-            parameters: ["bronze_ingest"]
+            parameters:
+              - "bronze_ingest"
+              - "logical_date={{job.parameters.logical_date}}"
+              - "catalog={{job.parameters.catalog}}"
+              - "environment={{job.parameters.environment}}"
+              - "landing_root={{job.parameters.landing_root}}"
+              - "export_root={{job.parameters.export_root}}"
 
         - task_key: silver_transform
           environment_key: serverless
@@ -126,7 +137,13 @@ resources:
           python_wheel_task:
             package_name: edgar_pipelines
             entry_point: edgar-pipelines
-            parameters: ["silver_transform"]
+            parameters:
+              - "silver_transform"
+              - "logical_date={{job.parameters.logical_date}}"
+              - "catalog={{job.parameters.catalog}}"
+              - "environment={{job.parameters.environment}}"
+              - "landing_root={{job.parameters.landing_root}}"
+              - "export_root={{job.parameters.export_root}}"
 
         - task_key: gold_build
           environment_key: serverless
@@ -135,7 +152,13 @@ resources:
           python_wheel_task:
             package_name: edgar_pipelines
             entry_point: edgar-pipelines
-            parameters: ["gold_build"]
+            parameters:
+              - "gold_build"
+              - "logical_date={{job.parameters.logical_date}}"
+              - "catalog={{job.parameters.catalog}}"
+              - "environment={{job.parameters.environment}}"
+              - "landing_root={{job.parameters.landing_root}}"
+              - "export_root={{job.parameters.export_root}}"
 
         - task_key: serving_export
           environment_key: serverless
@@ -144,4 +167,10 @@ resources:
           python_wheel_task:
             package_name: edgar_pipelines
             entry_point: edgar-pipelines
-            parameters: ["serving_export"]
+            parameters:
+              - "serving_export"
+              - "logical_date={{job.parameters.logical_date}}"
+              - "catalog={{job.parameters.catalog}}"
+              - "environment={{job.parameters.environment}}"
+              - "landing_root={{job.parameters.landing_root}}"
+              - "export_root={{job.parameters.export_root}}"
