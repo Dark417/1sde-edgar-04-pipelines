@@ -194,7 +194,7 @@ def check_landing(ws: Workspace, catalog: str) -> list[Check]:
     # which is a different problem from a missing table.
     present, empty = [], []
     for stream_name in names.STREAMS:
-        path = names.landing_path(names.LANDING_VOLUME, stream_name)
+        path = names.landing_path(names.VOLUME_LANDING, stream_name)
         code, body = ws.get(f"/api/2.0/fs/directories{path}")
         if code == 200 and body.get("contents"):
             present.append(f"{stream_name}: {len(body['contents'])} entries")

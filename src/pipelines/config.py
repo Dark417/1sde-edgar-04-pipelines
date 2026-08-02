@@ -187,7 +187,7 @@ def resolve(job: str, *, overrides: dict[str, str] | None = None) -> Settings:
         "landing_root",
         env,
         ssm_key=names.SSM_DBX_VOLUME_PATH,
-        default=names.LANDING_VOLUME if storage_mode == "volume" else None,
+        default=names.VOLUME_LANDING if storage_mode == "volume" else None,
     )
     # No SSM lookup: where this pipeline keeps its Auto Loader checkpoints is an
     # implementation detail, not a cross-repo contract. Publishing it would invite
