@@ -25,7 +25,13 @@ def build(companies: Any, filings: Any, restatements: Any) -> Any:
     from pyspark.sql import functions as F
 
     current = companies.filter(F.col("is_current"))
-    filing_stats = filings.groupBy("cik").agg(
+    # silver.filing became SCD-2 in contracts v1.1.0, so it now holds one row per
+    # *version* of a filing. Counting it unfiltered would inflate filing_count for every
+    # company that has ever amended anything, and skew first/last_filed_date toward
+    # whichever versions happen to exist. This filter is not optional tidiness -- without
+    # it the mart is silently wrong in exactly the cases the mart exists to describe.
+    current_filings = filings.filter(F.col("is_current"))
+    filing_stats = current_filings.groupBy("cik").agg(
         F.count(F.lit(1)).cast("int").alias("filing_count"),
         F.min("filed_date").alias("first_filed_date"),
         F.max("filed_date").alias("last_filed_date"),

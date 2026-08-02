@@ -25,10 +25,18 @@ def build(filings: Any) -> Any:
     """
     from pyspark.sql import functions as F
 
-    return filings.groupBy("filed_date", "base_form_type").agg(
-        F.count(F.lit(1)).cast("int").alias("filing_count"),
-        F.sum(F.col("is_amendment").cast("int")).cast("int").alias("amendment_count"),
-        F.count_distinct(F.col("cik")).cast("int").alias("distinct_cik_count"),
+    # One row per *version* since silver.filing became SCD-2 (contracts v1.1.0). Counting
+    # unfiltered would double-count every amended filing -- and because an amendment is
+    # precisely what opens a new version, the inflation lands exactly on the days this
+    # series is meant to explain.
+    return (
+        filings.filter(F.col("is_current"))
+        .groupBy("filed_date", "base_form_type")
+        .agg(
+            F.count(F.lit(1)).cast("int").alias("filing_count"),
+            F.sum(F.col("is_amendment").cast("int")).cast("int").alias("amendment_count"),
+            F.count_distinct(F.col("cik")).cast("int").alias("distinct_cik_count"),
+        )
     )
 
 
