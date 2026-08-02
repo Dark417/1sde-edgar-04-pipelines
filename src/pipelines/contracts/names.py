@@ -31,6 +31,28 @@ GOLD_SCHEMA: Final[str] = "gold"
 #: Volume that repo 2 creates and repo 3 writes into.
 LANDING_VOLUME: Final[str] = f"/Volumes/{CATALOG}/{LANDING_SCHEMA}/edgar"
 
+# ---------------------------------------------------------------------------
+# SSM Parameter Store keys — the cross-repo config interface, ratified by
+# contracts v1.2.0 and mirrored here.
+#
+# These exist because nothing owned them and it showed. Repo 2 published
+# ``/edgar-lakehouse/dbx/volume_path``, repo 3 read that name, and this repo
+# independently invented ``/edgar-lakehouse/dbx/landing_volume`` for the same
+# value — then read a key nobody publishes. Nothing failed loudly, because the
+# lookup falls back to a default on a miss, so the two repos simply disagreed in
+# silence until someone diffed them.
+#
+# Import the constant rather than spelling the string out. A typo in a literal is
+# a runtime ParameterNotFound in whichever environment lacks the env-var
+# override; a typo in an attribute name is an AttributeError at import.
+#
+# Only the keys this repo actually reads are mirrored. The published set is
+# larger; see repo 1's ``names.SSM_PUBLISHED`` for the whole interface.
+# ---------------------------------------------------------------------------
+SSM_PREFIX: Final[str] = "/edgar-lakehouse"
+SSM_DBX_VOLUME_PATH: Final[str] = f"{SSM_PREFIX}/dbx/volume_path"
+SSM_S3_SERVING_BUCKET: Final[str] = f"{SSM_PREFIX}/s3/serving_bucket"
+
 STREAMS: Final[dict[str, Stream]] = {
     "filing_index": Stream(
         name="filing_index",
