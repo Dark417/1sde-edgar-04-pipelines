@@ -1,9 +1,9 @@
-# Repo 4 / 5 — `1sde-databricks-edgar-04-pipelines`
+# Repo 4 / 5 — `1sde-edgar-04-pipelines`
 
 > Copy to repo root as `AGENTS.md`. Sections 0–8 are agent instructions. Section 9 is
 > yours, by hand. Section 10 is what repo 5 consumes.
 >
-> GitHub: `github.com/Dark417/1sde-databricks-edgar-04-pipelines`
+> GitHub: `github.com/Dark417/1sde-edgar-04-pipelines`
 > Build order position: **4 of 5.** Requires repos 1, 2, 3 complete and at least one
 > landing object present.
 
@@ -98,7 +98,7 @@ Lint/types    ruff, mypy --strict (Spark code: mypy on non-Spark modules only)
 ## 4. Layered structure
 
 ```
-1sde-databricks-edgar-04-pipelines/
+1sde-edgar-04-pipelines/
 ├── AGENTS.md
 ├── pyproject.toml
 ├── databricks.yml            # Asset Bundle: job + task wiring
@@ -329,9 +329,9 @@ in the pinned contracts version's schemas. Failing must block merge.
 
 ### 9.1 Create the repo
 ```bash
-gh repo create Dark417/1sde-databricks-edgar-04-pipelines \
+gh repo create Dark417/1sde-edgar-04-pipelines \
   --private --add-readme --gitignore Python --license mit --clone
-cd 1sde-databricks-edgar-04-pipelines
+cd 1sde-edgar-04-pipelines
 mkdir -p docs && cp ../design/00-design-doc.md ../design/02-data-contracts.md docs/
 ```
 

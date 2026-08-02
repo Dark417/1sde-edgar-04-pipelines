@@ -73,6 +73,14 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [lint-and-fast-tests, spark-tests, contract-compat]
     runs-on: ubuntu-latest
+    # Deploying is opt-in: set the DATABRICKS_HOST / DATABRICKS_TOKEN secrets and the
+    # bundle steps light up on the next push to main. Until then they skip rather than
+    # fail, so a missing credential never masquerades as a broken build. The `secrets`
+    # context is not available in a job-level `if:`, so the gate has to be per-step on
+    # `env` -- which is why the credentials are declared once at job level below.
+    env:
+      DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+      DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -86,14 +94,19 @@ jobs:
         with:
           name: edgar-pipelines-wheel
           path: dist/*.whl
+      - name: Report whether the bundle will be deployed
+        run: |
+          if [ -n "$DATABRICKS_HOST" ] && [ -n "$DATABRICKS_TOKEN" ]; then
+            echo "::notice::Databricks credentials present -- validating and deploying the dev bundle."
+          else
+            echo "::notice::DATABRICKS_HOST / DATABRICKS_TOKEN not set; skipping bundle validate and deploy. The wheel above is still built and uploaded as an artifact. Set both repository secrets to enable deployment from CI."
+          fi
+
       - uses: databricks/setup-cli@main
+        if: env.DATABRICKS_HOST != '' && env.DATABRICKS_TOKEN != ''
       - name: bundle validate
+        if: env.DATABRICKS_HOST != '' && env.DATABRICKS_TOKEN != ''
         run: databricks bundle validate -t dev
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
       - name: bundle deploy (dev)
+        if: env.DATABRICKS_HOST != '' && env.DATABRICKS_TOKEN != ''
         run: databricks bundle deploy -t dev
-        env:
-          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
-          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}

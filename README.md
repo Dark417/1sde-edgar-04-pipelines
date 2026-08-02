@@ -1,4 +1,4 @@
-# 1sde-databricks-edgar-04-pipelines
+# 1sde-edgar-04-pipelines
 
 Repo 4 of 5 in the **edgar-lakehouse** project: the medallion transform.
 `landing → bronze → silver → gold → Parquet serving export`, as Databricks Jobs on

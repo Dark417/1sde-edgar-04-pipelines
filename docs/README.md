@@ -6,7 +6,7 @@
 authoritative specification for this repo, and `AGENTS.global.md` says both are
 **copied from repo 1**, which is their source of truth.
 
-Repo 1 (`1sde-databricks-edgar-01-contracts`) has not published them yet, and repo 4
+Repo 1 (`1sde-edgar-01-contracts`) has not published them yet, and repo 4
 cannot be built or tested without them. So the copies here were **reconstructed in this
 repo** from `AGENTS.md` §§1–11 plus the observed shape of the live SEC EDGAR API. They
 are complete and self-consistent, and the code and tests in this repo are written
