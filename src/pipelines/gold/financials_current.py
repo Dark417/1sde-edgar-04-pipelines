@@ -16,7 +16,7 @@ from pipelines.config import Settings
 from pipelines.contracts import schemas
 from pipelines.framework.metrics import JobRun
 
-from .common import write_gold
+from .common import delta_version, write_gold
 from .restatement_event import GRAIN
 
 __all__ = ["build", "run"]
@@ -49,8 +49,8 @@ def build(facts: Any, *, company_names: Any = None, restatements: Any = None) ->
     )
 
     if restatements is not None:
-        restated_keys = restatements.select(*GRAIN).distinct().withColumn(
-            "was_restated", F.lit(True)
+        restated_keys = (
+            restatements.select(*GRAIN).distinct().withColumn("was_restated", F.lit(True))
         )
         latest = latest.join(restated_keys, on=list(GRAIN), how="left")
     else:
@@ -75,6 +75,12 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> int:
     )
     restatements = spark.table(settings.table(schemas.GOLD_RESTATEMENT_EVENT.fqn))
     built = build(facts, company_names=companies, restatements=restatements)
-    count = write_gold(built, SPEC, settings.table(SPEC.fqn), run_ctx.run_id)
+    count = write_gold(
+        built,
+        SPEC,
+        settings.table(SPEC.fqn),
+        run_ctx.run_id,
+        source_version=delta_version(spark, settings.table(schemas.SILVER_FINANCIAL_FACT.fqn)),
+    )
     run_ctx.record({"gold.financials_current.rows": count})
     return count

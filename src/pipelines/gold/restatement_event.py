@@ -29,7 +29,7 @@ from pipelines.contracts import concepts as concept_registry
 from pipelines.contracts import schemas
 from pipelines.framework.metrics import JobRun
 
-from .common import write_gold
+from .common import delta_version, write_gold
 
 __all__ = [
     "GRAIN",
@@ -254,9 +254,9 @@ def build(
         F.col("decimals").alias("restated_decimals"),
         delta_abs.alias("delta_abs"),
         delta_pct.alias("delta_pct"),
-        F.datediff(F.col("filed_date"), F.col("prev_filed_date")).cast("int").alias(
-            "days_to_restatement"
-        ),
+        F.datediff(F.col("filed_date"), F.col("prev_filed_date"))
+        .cast("int")
+        .alias("days_to_restatement"),
     )
 
     # Bands are a product heuristic, not an accounting standard. A restatement away
@@ -289,7 +289,11 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> int:
     )
     events = build(facts, company_names=companies)
     count = write_gold(
-        events, SPEC, settings.table(SPEC.fqn), run_ctx.run_id
+        events,
+        SPEC,
+        settings.table(SPEC.fqn),
+        run_ctx.run_id,
+        source_version=delta_version(spark, settings.table(schemas.SILVER_FINANCIAL_FACT.fqn)),
     )
     run_ctx.record({"gold.restatement_event.rows": count})
     run_ctx.add(rows_out=count)

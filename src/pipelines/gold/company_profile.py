@@ -8,7 +8,7 @@ from pipelines.config import Settings
 from pipelines.contracts import schemas
 from pipelines.framework.metrics import JobRun
 
-from .common import write_gold
+from .common import delta_version, write_gold
 
 __all__ = ["build", "run"]
 
@@ -52,7 +52,11 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> int:
     filings = spark.table(settings.table(schemas.SILVER_FILING.fqn))
     restatements = spark.table(settings.table(schemas.GOLD_RESTATEMENT_EVENT.fqn))
     count = write_gold(
-        build(companies, filings, restatements), SPEC, settings.table(SPEC.fqn), run_ctx.run_id
+        build(companies, filings, restatements),
+        SPEC,
+        settings.table(SPEC.fqn),
+        run_ctx.run_id,
+        source_version=delta_version(spark, settings.table(schemas.SILVER_COMPANY.fqn)),
     )
     run_ctx.record({"gold.company_profile.rows": count})
     return count
