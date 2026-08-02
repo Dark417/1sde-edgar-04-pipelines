@@ -54,7 +54,10 @@ class MissingConfigError(RuntimeError):
 def _ssm_client() -> Any:
     import boto3
 
-    return boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "us-east-1"))
+    # us-east-2 matches the Unity Catalog metastore (AGENTS.global.md law 11).
+    # SSM parameters are regional, so the wrong default here surfaces as
+    # ParameterNotFound on a parameter that plainly exists.
+    return boto3.client("ssm", region_name=os.environ.get("AWS_REGION", "us-east-2"))
 
 
 def _from_ssm(key: str) -> str | None:

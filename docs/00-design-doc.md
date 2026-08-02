@@ -6,7 +6,7 @@
 ## 1. What this is
 
 A medallion lakehouse over SEC EDGAR filings and XBRL financial facts, built on
-Databricks Free Edition (AWS, `us-east-1`), split across five repos with
+Databricks Free Edition (AWS, `us-east-2`), split across five repos with
 one-directional dependencies.
 
 | # | Repo | Role |
