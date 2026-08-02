@@ -258,13 +258,28 @@ SILVER_FINANCIAL_FACT = TableSpec(
         C("filed_date", "DATE", False),
         C("frame", "STRING", True),
         C("logical_date", "DATE", False),
-        # NOT YET ADOPTED: contracts v1.1.0 adds fact_sk, assertion_version,
-        # is_current_assertion and superseded_by_accession to this table (changeset 060).
-        # They are deliberately absent here until silver/financial_fact.py populates
-        # them. The contract gate compares one-directionally -- columns repo 1 has and
-        # this repo does not are fine -- so declaring them before writing them would only
-        # produce rows with nulls in NOT NULL columns. Adopt the column and the code that
-        # fills it in the same change.
+        # Assertion versioning, contracts v1.1.0 (changeset 060). A restatement is a new
+        # assertion about the same period, not a correction to a row, so both rows are
+        # kept and ordered rather than one overwriting the other.
+        #
+        # fact_sk is the *period* identity and deliberately excludes accession_number,
+        # even though accession IS part of the row grain. That is the point: the rows
+        # that share a fact_sk are the competing assertions, and the difference between
+        # them is the restatement.
+        C("fact_sk", "STRING", False, "sha2 of cik|concept_canonical|period_end|unit"),
+        C(
+            "assertion_version",
+            "INT",
+            False,
+            "Dense, 1-based per fact_sk by (filed_date, accession)",
+        ),
+        C("is_current_assertion", "BOOLEAN", False, "Exactly one true per fact_sk"),
+        C(
+            "superseded_by_accession",
+            "STRING",
+            True,
+            "Accession that replaced this one; null when current",
+        ),
         *SILVER_LINEAGE_COLUMNS,
     ),
     changeset=_SILVER_CHANGESET,

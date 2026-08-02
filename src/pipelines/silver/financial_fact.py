@@ -17,6 +17,7 @@ from pipelines.contracts import concepts as concept_registry
 from pipelines.contracts import dq as dq_registry
 from pipelines.contracts import names, schemas
 from pipelines.framework.dq import apply_dq
+from pipelines.framework.keys import surrogate_key
 from pipelines.framework.merge import MergeStats, dedupe_on, merge_scd1
 from pipelines.framework.metrics import JobRun
 
@@ -108,6 +109,15 @@ def build(bronze_df: Any) -> Any:
     )
 
 
+#: The *period* identity: which fact is being asserted, independent of who asserted it.
+#:
+#: ``accession_number`` is deliberately NOT part of this, even though it IS part of the
+#: row grain. That is the whole point: two accessions asserting the same period produce
+#: two rows (the grain) that share one ``fact_sk`` (the identity), and the difference
+#: between them is the restatement.
+FACT_SK_PARTS: tuple[str, ...] = ("cik", "concept_canonical", "period_end", "unit")
+
+
 def grain_counts(df: Any) -> Any:
     """Rows per business key, for the ``fact_grain_unique`` structural check.
 
@@ -158,9 +168,9 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
     run_ctx.record(grain_metrics, prefix="silver.financial_fact.grain.")
 
     source = align_to_spec(
-        deduped.withColumn("_first_seen_ts", F.current_timestamp()).withColumn(
-            "_last_seen_ts", F.current_timestamp()
-        ),
+        deduped.withColumn("fact_sk", surrogate_key(*FACT_SK_PARTS))
+        .withColumn("_first_seen_ts", F.current_timestamp())
+        .withColumn("_last_seen_ts", F.current_timestamp()),
         SPEC,
     )
     stats = merge_scd1(
@@ -173,6 +183,62 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
         # row the scan reached first and the result stops being reproducible.
         dedupe_order_by=("logical_date", "_ingest_batch_id", "_source_file"),
     )
+    restamp_assertions(spark, target)
     run_ctx.record(stats.as_metrics("silver.financial_fact.merge"))
     run_ctx.add(rows_out=stats.rows_target_after)
     return stats
+
+
+def restamp_assertions(spark: Any, target: str) -> None:
+    """Recompute assertion ordering across every version of each fact.
+
+    Runs *after* the merge and over the whole table, not just the batch, because the
+    ordering is a property of the set. A late-arriving original (EDGAR disseminates out
+    of order more often than you would like) lands *behind* a restatement that is already
+    stored, and that new row changes which of the existing rows is current. Stamping only
+    the incoming batch would leave two rows claiming ``is_current_assertion``, which
+    double-counts every figure downstream.
+
+    Recomputing the whole table is affordable here -- silver.financial_fact is ~750k rows
+    -- and it is the version that is obviously correct rather than the version that is
+    clever. If it ever stops being affordable, restrict the window to the ``fact_sk``
+    values present in the batch; do not try to update in place from the batch alone.
+
+    Ordering is ``(filed_date, accession_number)``. The accession is the tiebreaker so
+    that two assertions filed the same day still get a total, reproducible order --
+    without it ``row_number`` depends on scan order and the answer changes between runs.
+    """
+    from delta.tables import DeltaTable
+    from pyspark.sql import Window
+    from pyspark.sql import functions as F
+
+    ordered = Window.partitionBy("fact_sk").orderBy(
+        F.col("filed_date").asc_nulls_last(), F.col("accession_number").asc()
+    )
+    stamped = (
+        spark.table(target)
+        .select(
+            *GRAIN,
+            F.row_number().over(ordered).alias("assertion_version"),
+            # The accession that superseded this one. Null on the newest assertion,
+            # which is exactly what makes it current -- so the two columns cannot
+            # disagree with each other.
+            F.lead("accession_number").over(ordered).alias("superseded_by_accession"),
+        )
+        .withColumn("is_current_assertion", F.col("superseded_by_accession").isNull())
+    )
+
+    condition = " AND ".join(f"t.`{k}` <=> s.`{k}`" for k in GRAIN)
+    (
+        DeltaTable.forName(spark, target)
+        .alias("t")
+        .merge(stamped.alias("s"), condition)
+        .whenMatchedUpdate(
+            set={
+                "assertion_version": F.col("s.assertion_version"),
+                "is_current_assertion": F.col("s.is_current_assertion"),
+                "superseded_by_accession": F.col("s.superseded_by_accession"),
+            }
+        )
+        .execute()
+    )
