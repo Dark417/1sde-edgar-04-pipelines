@@ -5,9 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from edgar_lakehouse_contracts.dq import DQCheck
 from edgar_lakehouse_contracts.models import Severity
 
+from pipelines.dq_model import DQCheck
 from pipelines.framework.dq import DQBatchFailure, apply_dq
 
 pytestmark = pytest.mark.spark

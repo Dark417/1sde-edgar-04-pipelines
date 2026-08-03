@@ -20,8 +20,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from edgar_lakehouse_contracts.dq import DQCheck
 from edgar_lakehouse_contracts.models import Severity
+
+from pipelines.dq_model import DQCheck
 
 __all__ = ["DQBatchFailure", "DQResult", "apply_dq", "quarantine_frame"]
 

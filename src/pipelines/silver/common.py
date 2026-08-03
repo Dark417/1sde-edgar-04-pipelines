@@ -12,9 +12,9 @@ from collections.abc import Sequence
 from typing import Any
 
 from edgar_lakehouse_contracts import schemas
-from edgar_lakehouse_contracts.dq import DQCheck
 from edgar_lakehouse_contracts.models import TableSpec
 
+from pipelines.dq_model import DQCheck
 from pipelines.framework.dq import apply_dq
 from pipelines.framework.merge import merge_scd1
 from pipelines.framework.metrics import JobRun
