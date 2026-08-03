@@ -138,14 +138,29 @@ def test_company_profile_keeps_companies_with_no_filings(spark: Any) -> None:
 
 
 def _seed_gold(spark: Any, settings: Settings) -> None:
+    """Seed one filing and one activity row.
+
+    Columns are named, not positional. A ``VALUES`` list matched by position breaks the
+    moment the contract adds a column -- which is exactly what happened when
+    silver.filing went SCD-2 and gained six -- and it breaks as an arity error that says
+    nothing about the test's intent.
+    """
     spark.sql(
-        f"INSERT INTO {settings.table('edgar.silver.filing')} VALUES "
-        "('0001234567-26-000001', '0001234567', 'A', '10-K', '10-K', false, DATE'2026-07-31', "
-        "NULL, DATE'2026-07-31', current_timestamp(), current_timestamp(), 'b', 'f')"
+        f"INSERT INTO {settings.table('edgar.silver.filing')} "
+        "(accession_number, cik, company_name, form_type, base_form_type, is_amendment, "
+        " filed_date, primary_doc_url, logical_date, filing_sk, version_number, "
+        " valid_from, valid_to, is_current, _hash_diff, _first_seen_ts, _last_seen_ts, "
+        " _ingest_batch_id, _source_file) VALUES "
+        "('0001234567-26-000001', '0001234567', 'A', '10-K', '10-K', false, "
+        " DATE'2026-07-31', NULL, DATE'2026-07-31', 'sk-1', 1, "
+        " DATE'2026-07-31', NULL, true, 'seed-hash', current_timestamp(), "
+        " current_timestamp(), 'b', 'f')"
     )
     spark.sql(
-        f"INSERT INTO {settings.table('edgar.gold.filing_activity_daily')} VALUES "
-        "(DATE'2026-07-31', '10-K', 1, 0, 1, current_timestamp(), 'run')"
+        f"INSERT INTO {settings.table('edgar.gold.filing_activity_daily')} "
+        "(filed_date, base_form_type, filing_count, amendment_count, distinct_cik_count, "
+        " _generated_at, _run_id, _source_version) VALUES "
+        "(DATE'2026-07-31', '10-K', 1, 0, 1, current_timestamp(), 'run', 0)"
     )
 
 
