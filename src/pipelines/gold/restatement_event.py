@@ -24,9 +24,9 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any
 
-from edgar_lakehouse_contracts import concepts as concept_registry
 from edgar_lakehouse_contracts import schemas
 
+from pipelines import concept_map as concept_registry
 from pipelines.config import Settings
 from pipelines.framework.metrics import JobRun
 

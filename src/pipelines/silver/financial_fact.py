@@ -12,9 +12,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from edgar_lakehouse_contracts import concepts as concept_registry
 from edgar_lakehouse_contracts import names, schemas
 
+from pipelines import concept_map as concept_registry
 from pipelines import dq_rules as dq_registry
 from pipelines.config import Settings
 from pipelines.framework.dq import apply_dq
