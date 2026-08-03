@@ -12,10 +12,11 @@ from __future__ import annotations
 
 from typing import Any
 
+from edgar_lakehouse_contracts import names, schemas
+
+from pipelines import concept_map as concept_registry
+from pipelines import dq_rules as dq_registry
 from pipelines.config import Settings
-from pipelines.contracts import concepts as concept_registry
-from pipelines.contracts import dq as dq_registry
-from pipelines.contracts import names, schemas
 from pipelines.framework.dq import apply_dq
 from pipelines.framework.keys import surrogate_key
 from pipelines.framework.merge import MergeStats, dedupe_on, merge_scd1
@@ -137,7 +138,7 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
     bronze_table = settings.table(schemas.BRONZE_COMPANY_CONCEPT_RAW.fqn)
     target = settings.table(SPEC.fqn)
     quarantine = settings.table(schemas.SILVER_FINANCIAL_FACT_QUARANTINE.fqn)
-    logical_table = f"{names.SILVER_SCHEMA}.{SPEC.name}"
+    logical_table = f"{names.SCHEMA_SILVER}.{SPEC.name}"
 
     built = build(spark.table(bronze_table))
     run_ctx.add(rows_in=int(built.count()))

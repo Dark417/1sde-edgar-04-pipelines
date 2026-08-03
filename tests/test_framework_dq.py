@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
+from edgar_lakehouse_contracts.models import Severity
 
-from pipelines.contracts.models import DQCheck, Severity
+from pipelines.dq_model import DQCheck
 from pipelines.framework.dq import DQBatchFailure, apply_dq
 
 pytestmark = pytest.mark.spark
@@ -19,9 +20,7 @@ def _frame(spark: Any) -> Any:
     )
 
 
-REJECT_NEGATIVE = DQCheck(
-    "id_positive", "t", "id > 0", Severity.REJECT, "ids must be positive"
-)
+REJECT_NEGATIVE = DQCheck("id_positive", "t", "id > 0", Severity.REJECT, "ids must be positive")
 WARN_LABEL = DQCheck("label_present", "t", "label IS NOT NULL", Severity.WARN, "label missing")
 
 

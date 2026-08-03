@@ -25,8 +25,12 @@ def test_reprocessing_a_landing_file_adds_zero_rows(
     landing.write(
         "filing_index",
         [
-            envelope("filing_index", "0000000001-26-000001", index_payload("0000000001-26-000001", "1")),
-            envelope("filing_index", "0000000002-26-000002", index_payload("0000000002-26-000002", "2")),
+            envelope(
+                "filing_index", "0000000001-26-000001", index_payload("0000000001-26-000001", "1")
+            ),
+            envelope(
+                "filing_index", "0000000002-26-000002", index_payload("0000000002-26-000002", "2")
+            ),
         ],
     )
     target = settings.table("edgar.bronze.filing_index_raw")
@@ -66,7 +70,11 @@ def test_bronze_keeps_values_raw(
     its original bytes visible, rather than becoming an unexplainable null."""
     landing.write(
         "filing_index",
-        [envelope("filing_index", "a", index_payload("0000000001-26-000001", "1234", form_type="10-k"))],
+        [
+            envelope(
+                "filing_index", "a", index_payload("0000000001-26-000001", "1234", form_type="10-k")
+            )
+        ],
     )
     filing_index.ingest(spark, settings, job_run_ctx)
     row = spark.table(settings.table("edgar.bronze.filing_index_raw")).collect()[0]
@@ -200,7 +208,17 @@ def test_submissions_and_concept_payloads_stay_opaque(
                 concept_payload(
                     "1",
                     "Revenues",
-                    {"USD": [fact(start="2025-01-01", end="2025-12-31", val=1.0, accn="0000000001-26-000001", filed="2026-03-01")]},
+                    {
+                        "USD": [
+                            fact(
+                                start="2025-01-01",
+                                end="2025-12-31",
+                                val=1.0,
+                                accn="0000000001-26-000001",
+                                filed="2026-03-01",
+                            )
+                        ]
+                    },
                 ),
             )
         ],

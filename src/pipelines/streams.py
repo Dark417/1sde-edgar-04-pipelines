@@ -1,57 +1,34 @@
-"""Object names: catalog, schemas, table names, landing paths, streams.
+"""L0 -- the landing streams this pipeline ingests.
 
-No hardcoded bucket names or hosts live here -- only the *shape* of names. Anything
-environment-specific (bucket, workspace host, volume root) is resolved at runtime by
-:mod:`pipelines.config` from an env var, then SSM, then a hard failure naming the key.
+Not part of the published contract, and deliberately so. ``landing_prefix`` is shared
+with repo 3, but ``bronze_table``, ``payload_mode`` and ``passthrough_columns`` describe
+how *this* repo chooses to land and project each stream -- they are pipeline decisions,
+not facts about the data. Publishing them from repo 1 would invite another consumer to
+depend on choices this repo should stay free to change.
+
+The ``Stream`` type itself comes from the contracts wheel.
 """
 
 from __future__ import annotations
 
-from typing import Final
+from dataclasses import dataclass, field
+from typing import Final, Literal
 
-from .models import Stream
+__all__ = ["STREAMS", "Stream", "stream"]
 
-__all__ = [
-    "BRONZE_SCHEMA",
-    "CATALOG",
-    "GOLD_SCHEMA",
-    "LANDING_SCHEMA",
-    "SILVER_SCHEMA",
-    "STREAMS",
-    "landing_path",
-    "stream",
-]
 
-CATALOG: Final[str] = "edgar"
-LANDING_SCHEMA: Final[str] = "landing"
-BRONZE_SCHEMA: Final[str] = "bronze"
-SILVER_SCHEMA: Final[str] = "silver"
-GOLD_SCHEMA: Final[str] = "gold"
+@dataclass(frozen=True, slots=True)
+class Stream:
+    """A landing stream produced by repo 3 and consumed by bronze here."""
 
-#: Volume that repo 2 creates and repo 3 writes into.
-LANDING_VOLUME: Final[str] = f"/Volumes/{CATALOG}/{LANDING_SCHEMA}/edgar"
+    name: str
+    landing_prefix: str
+    bronze_table: str
+    payload_mode: Literal["passthrough", "opaque_json"]
+    resource_grain: str = ""
+    description: str = ""
+    passthrough_columns: tuple[str, ...] = field(default=())
 
-# ---------------------------------------------------------------------------
-# SSM Parameter Store keys — the cross-repo config interface, ratified by
-# contracts v1.2.0 and mirrored here.
-#
-# These exist because nothing owned them and it showed. Repo 2 published
-# ``/edgar-lakehouse/dbx/volume_path``, repo 3 read that name, and this repo
-# independently invented ``/edgar-lakehouse/dbx/landing_volume`` for the same
-# value — then read a key nobody publishes. Nothing failed loudly, because the
-# lookup falls back to a default on a miss, so the two repos simply disagreed in
-# silence until someone diffed them.
-#
-# Import the constant rather than spelling the string out. A typo in a literal is
-# a runtime ParameterNotFound in whichever environment lacks the env-var
-# override; a typo in an attribute name is an AttributeError at import.
-#
-# Only the keys this repo actually reads are mirrored. The published set is
-# larger; see repo 1's ``names.SSM_PUBLISHED`` for the whole interface.
-# ---------------------------------------------------------------------------
-SSM_PREFIX: Final[str] = "/edgar-lakehouse"
-SSM_DBX_VOLUME_PATH: Final[str] = f"{SSM_PREFIX}/dbx/volume_path"
-SSM_S3_SERVING_BUCKET: Final[str] = f"{SSM_PREFIX}/s3/serving_bucket"
 
 STREAMS: Final[dict[str, Stream]] = {
     "filing_index": Stream(

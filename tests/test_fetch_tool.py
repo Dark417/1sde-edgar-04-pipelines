@@ -50,7 +50,7 @@ def test_fields_are_parsed_from_the_right() -> None:
 
 
 def test_form_types_with_a_single_space_stay_intact() -> None:
-    """"SC 13D" is one form type, not a form type and a company name."""
+    """ "SC 13D" is one form type, not a form type and a company name."""
     forms = {r["form_type"] for r in parse_daily_index(IDX)}
     assert "SC 13D" in forms
 
@@ -109,7 +109,10 @@ def test_trim_submissions_keeps_the_document_shape() -> None:
     """Only the row count shrinks. Using real data is pointless if the shape is faked."""
     payload = {
         "cik": "1",
-        "filings": {"recent": {"form": ["10-K"] * 100, "accessionNumber": ["x"] * 100}, "files": []},
+        "filings": {
+            "recent": {"form": ["10-K"] * 100, "accessionNumber": ["x"] * 100},
+            "files": [],
+        },
     }
     trimmed = trim_submissions(payload, 5)
     assert set(trimmed["filings"]["recent"]) == {"form", "accessionNumber"}

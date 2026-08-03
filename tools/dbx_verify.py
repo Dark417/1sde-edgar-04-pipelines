@@ -39,7 +39,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from pipelines.contracts import names, schemas  # noqa: E402
+from edgar_lakehouse_contracts import names, schemas  # noqa: E402
+
+from pipelines import streams  # noqa: E402
 
 OK = "ok"
 MISSING = "missing"
@@ -123,22 +125,20 @@ def check_catalog_and_schemas(ws: Workspace, catalog: str) -> list[Check]:
     code, body = ws.get("/api/2.1/unity-catalog/schemas", catalog_name=catalog)
     schema_names = {s["name"] for s in body.get("schemas", [])} if code == 200 else set()
     wanted = {
-        names.LANDING_SCHEMA,
-        names.BRONZE_SCHEMA,
-        names.SILVER_SCHEMA,
-        names.GOLD_SCHEMA,
+        names.SCHEMA_LANDING,
+        names.SCHEMA_BRONZE,
+        names.SCHEMA_SILVER,
+        names.SCHEMA_GOLD,
     }
     missing = sorted(wanted - schema_names)
-    checks.append(
-        Check("schemas", OK if not missing else MISSING, "repo 2 owns these", missing)
-    )
+    checks.append(Check("schemas", OK if not missing else MISSING, "repo 2 owns these", missing))
     return checks
 
 
 def check_tables(ws: Workspace, catalog: str) -> list[Check]:
     """Every table this repo writes must exist, with the columns the contract names."""
     by_schema: dict[str, dict[str, set[str]]] = {}
-    for schema in (names.BRONZE_SCHEMA, names.SILVER_SCHEMA, names.GOLD_SCHEMA):
+    for schema in (names.SCHEMA_BRONZE, names.SCHEMA_SILVER, names.SCHEMA_GOLD):
         code, body = ws.get(
             "/api/2.1/unity-catalog/tables", catalog_name=catalog, schema_name=schema
         )
@@ -179,7 +179,7 @@ def check_tables(ws: Workspace, catalog: str) -> list[Check]:
 
 def check_landing(ws: Workspace, catalog: str) -> list[Check]:
     code, body = ws.get(
-        "/api/2.1/unity-catalog/volumes", catalog_name=catalog, schema_name=names.LANDING_SCHEMA
+        "/api/2.1/unity-catalog/volumes", catalog_name=catalog, schema_name=names.SCHEMA_LANDING
     )
     volumes = {v["name"] for v in body.get("volumes", [])} if code == 200 else set()
     checks = [
@@ -193,8 +193,8 @@ def check_landing(ws: Workspace, catalog: str) -> list[Check]:
     # Repo 3's output. Absent is not fatal -- it means there is nothing to ingest yet,
     # which is a different problem from a missing table.
     present, empty = [], []
-    for stream_name in names.STREAMS:
-        path = names.landing_path(names.LANDING_VOLUME, stream_name)
+    for stream_name in streams.STREAMS:
+        path = streams.landing_path(names.VOLUME_LANDING, stream_name)
         code, body = ws.get(f"/api/2.0/fs/directories{path}")
         if code == 200 and body.get("contents"):
             present.append(f"{stream_name}: {len(body['contents'])} entries")
@@ -234,7 +234,9 @@ def check_jobs(ws: Workspace) -> Check:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--host", default=os.environ.get("DATABRICKS_HOST"))
     parser.add_argument("--token", default=os.environ.get("DATABRICKS_TOKEN"))
     parser.add_argument("--catalog", default=os.environ.get("EDGAR_CATALOG", names.CATALOG))

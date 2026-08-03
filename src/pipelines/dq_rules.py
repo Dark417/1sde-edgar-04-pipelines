@@ -13,7 +13,9 @@ from __future__ import annotations
 
 from typing import Final
 
-from .models import DQCheck, Severity
+from edgar_lakehouse_contracts.models import Severity
+
+from pipelines.dq_model import DQCheck
 
 __all__ = ["BRONZE_RESCUED_CHECK", "CHECKS", "checks_for"]
 

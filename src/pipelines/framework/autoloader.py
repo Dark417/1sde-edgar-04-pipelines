@@ -34,8 +34,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from pipelines.contracts import names
-from pipelines.contracts.envelope import ENVELOPE_FIELDS
+from edgar_lakehouse_contracts.envelope import ENVELOPE_FIELDS
+
+from pipelines import streams
 
 __all__ = [
     "LandingBatch",
@@ -57,14 +58,16 @@ AUTOLOADER_OPTIONS: dict[str, str] = {
 
 def read_landing_stream(spark: Any, stream: str, landing_root: str, checkpoint_root: str) -> Any:
     """Auto Loader stream over one landing prefix. Databricks only."""
-    path = names.landing_path(landing_root, stream)
+    path = streams.landing_path(landing_root, stream)
     reader = spark.readStream.format("cloudFiles")
     for key, value in AUTOLOADER_OPTIONS.items():
         reader = reader.option(key, value)
     # Per-stream schema location. Sharing one location across streams merges their
     # inferred schemas into a single union and every stream starts rescuing the others'
     # columns.
-    reader = reader.option("cloudFiles.schemaLocation", names.checkpoint_path(checkpoint_root, stream))
+    reader = reader.option(
+        "cloudFiles.schemaLocation", streams.checkpoint_path(checkpoint_root, stream)
+    )
     from pyspark.sql import functions as F
 
     return reader.load(path).withColumn("_source_file", F.col("_metadata.file_path"))
@@ -95,7 +98,7 @@ class LandingBatch:
 
 
 def _ledger_path(checkpoint_root: str, stream: str) -> str:
-    return f"{names.checkpoint_path(checkpoint_root, stream)}/_processed_files.json"
+    return f"{streams.checkpoint_path(checkpoint_root, stream)}/_processed_files.json"
 
 
 def _load_ledger(path: str) -> frozenset[str]:
@@ -109,7 +112,7 @@ def _load_ledger(path: str) -> frozenset[str]:
 
 def landing_files(landing_root: str, stream: str) -> tuple[str, ...]:
     """Every landing object for a stream, sorted for deterministic batching."""
-    root = Path(names.landing_path(landing_root, stream))
+    root = Path(streams.landing_path(landing_root, stream))
     if not root.exists():
         return ()
     return tuple(sorted(str(p) for p in root.rglob("*.json") if p.is_file()))
@@ -151,7 +154,9 @@ def read_landing_batch(
     # Rescue: anything the contract does not name is preserved as JSON rather than
     # dropped. A dropped column is a source change nobody ever finds out about.
     rescued = (
-        F.to_json(F.struct(*[F.col(f"`{c}`") for c in extra])) if extra else F.lit(None).cast("string")
+        F.to_json(F.struct(*[F.col(f"`{c}`") for c in extra]))
+        if extra
+        else F.lit(None).cast("string")
     )
     projected = [
         (F.col(f"`{name}`") if name in raw.columns else F.lit(None)).cast(type_sql).alias(name)

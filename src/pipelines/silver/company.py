@@ -12,9 +12,10 @@ from __future__ import annotations
 
 from typing import Any
 
+from edgar_lakehouse_contracts import names, schemas
+
+from pipelines import dq_rules as dq_registry
 from pipelines.config import Settings
-from pipelines.contracts import dq as dq_registry
-from pipelines.contracts import names, schemas
 from pipelines.framework.delta_ops import rollback_on_failure
 from pipelines.framework.dq import apply_dq
 from pipelines.framework.keys import surrogate_key
@@ -119,7 +120,7 @@ def run(spark: Any, settings: Settings, run_ctx: JobRun) -> MergeStats:
     bronze_table = settings.table(schemas.BRONZE_COMPANY_SUBMISSIONS_RAW.fqn)
     target = settings.table(SPEC.fqn)
     quarantine = settings.table(schemas.SILVER_COMPANY_QUARANTINE.fqn)
-    logical_table = f"{names.SILVER_SCHEMA}.{SPEC.name}"
+    logical_table = f"{names.SCHEMA_SILVER}.{SPEC.name}"
 
     built = build(spark.table(bronze_table))
     run_ctx.add(rows_in=int(built.count()))

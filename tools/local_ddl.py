@@ -29,17 +29,17 @@ _REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(_REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from pipelines.contracts import names, schemas  # noqa: E402
-from pipelines.contracts.models import TableSpec  # noqa: E402
+from edgar_lakehouse_contracts import names, schemas  # noqa: E402
+from edgar_lakehouse_contracts.models import TableSpec  # noqa: E402
 
 __all__ = ["create_all", "drop_all", "render_create_table", "schemas_for"]
 
 
 def schemas_for(catalog: str) -> list[str]:
     return [
-        f"{catalog}.{names.BRONZE_SCHEMA}",
-        f"{catalog}.{names.SILVER_SCHEMA}",
-        f"{catalog}.{names.GOLD_SCHEMA}",
+        f"{catalog}.{names.SCHEMA_BRONZE}",
+        f"{catalog}.{names.SCHEMA_SILVER}",
+        f"{catalog}.{names.SCHEMA_GOLD}",
     ]
 
 

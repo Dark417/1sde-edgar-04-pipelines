@@ -43,8 +43,10 @@ import requests
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_REPO_ROOT / "src"))
 
-from pipelines.contracts import concepts, names  # noqa: E402
-from pipelines.contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM  # noqa: E402
+from edgar_lakehouse_contracts import concepts  # noqa: E402
+from edgar_lakehouse_contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM  # noqa: E402
+
+from pipelines import streams  # noqa: E402
 
 # The SEC's fair-access policy is 10 requests/second with a declared User-Agent.
 # Staying under it is not optional: EDGAR blocks by IP, and a blocked laptop cannot be
@@ -153,7 +155,9 @@ def parse_daily_index(text: str) -> list[dict[str, str]]:
     return rows
 
 
-def select_index_rows(rows: list[dict[str, str]], limit: int, keep_ciks: set[str]) -> list[dict[str, str]]:
+def select_index_rows(
+    rows: list[dict[str, str]], limit: int, keep_ciks: set[str]
+) -> list[dict[str, str]]:
     """Cap the index to ``limit`` rows without throwing away the interesting ones.
 
     Ordering is by form-type interest then by accession, so the same input file always
@@ -182,7 +186,7 @@ def write_stream(out_root: Path, stream: str, envelopes: list[Envelope]) -> int:
     for env in envelopes:
         by_date.setdefault(env.logical_date, []).append(env)
     for logical_date, group in sorted(by_date.items()):
-        path = Path(names.landing_path(str(out_root), stream, logical_date)) / "part-00000.json"
+        path = Path(streams.landing_path(str(out_root), stream, logical_date)) / "part-00000.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             for env in group:
@@ -193,17 +197,25 @@ def write_stream(out_root: Path, stream: str, envelopes: list[Envelope]) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--out", default="data/landing", help="landing root to write into")
-    parser.add_argument("--logical-date", default=None, help="YYYY-MM-DD; defaults to the last index date")
+    parser.add_argument(
+        "--logical-date", default=None, help="YYYY-MM-DD; defaults to the last index date"
+    )
     parser.add_argument(
         "--index-dates",
         default="",
         help="comma-separated YYYY-MM-DD daily-index dates to pull (default: last 2 business days available)",
     )
-    parser.add_argument("--ciks", default=",".join(DEFAULT_CIKS), help="comma-separated 10-digit CIKs")
+    parser.add_argument(
+        "--ciks", default=",".join(DEFAULT_CIKS), help="comma-separated 10-digit CIKs"
+    )
     parser.add_argument("--max-index-rows", type=int, default=150, help="cap per index date")
-    parser.add_argument("--max-recent-filings", type=int, default=40, help="trim submissions filings.recent")
+    parser.add_argument(
+        "--max-recent-filings", type=int, default=40, help="trim submissions filings.recent"
+    )
     parser.add_argument("--user-agent", default=None, help="overrides EDGAR_USER_AGENT")
     parser.add_argument(
         "--inject-bad-accession",
@@ -332,7 +344,7 @@ def main(argv: list[str] | None = None) -> int:
         # than dropping it silently -- that is the only signal we get that the upstream
         # payload changed shape.
         line_extra = {"_injected_unknown_field": "schema-drift-probe"}
-        path = Path(names.landing_path(str(out_root), "company_concept", logical_date))
+        path = Path(streams.landing_path(str(out_root), "company_concept", logical_date))
         path.mkdir(parents=True, exist_ok=True)
         drift = json.loads(concept_envelopes[0].to_json_line())
         drift.update(line_extra)

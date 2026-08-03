@@ -12,9 +12,26 @@ does not depend on join order (AGENTS.global.md rule 5).
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Final
 
-from .models import ConceptMapping
+
+@dataclass(frozen=True, slots=True)
+class ConceptMapping:
+    """Maps a taxonomy tag to the canonical concept used by gold and the API.
+
+    ``preference`` breaks ties when a filer reports more than one source tag for the
+    same canonical concept in the same period: lowest wins. Without an explicit,
+    deterministic ordering the chosen tag depends on join order.
+    """
+
+    canonical: str
+    taxonomy: str
+    tag: str
+    preference: int
+    unit_class: str
+    label: str = ""
+
 
 __all__ = ["CANONICAL_CONCEPTS", "CONCEPT_MAPPINGS", "mappings_for_tag", "tags_to_fetch"]
 
@@ -23,8 +40,22 @@ M = ConceptMapping
 CONCEPT_MAPPINGS: Final[tuple[ConceptMapping, ...]] = (
     # Revenue. RevenueFromContractWithCustomerExcludingAssessedTax is the ASC 606 tag
     # and wins where present; Revenues is the legacy tag many smaller filers still use.
-    M("revenue_total", "us-gaap", "RevenueFromContractWithCustomerExcludingAssessedTax", 10, "monetary", "Revenue"),
-    M("revenue_total", "us-gaap", "RevenueFromContractWithCustomerIncludingAssessedTax", 20, "monetary", "Revenue"),
+    M(
+        "revenue_total",
+        "us-gaap",
+        "RevenueFromContractWithCustomerExcludingAssessedTax",
+        10,
+        "monetary",
+        "Revenue",
+    ),
+    M(
+        "revenue_total",
+        "us-gaap",
+        "RevenueFromContractWithCustomerIncludingAssessedTax",
+        20,
+        "monetary",
+        "Revenue",
+    ),
     M("revenue_total", "us-gaap", "Revenues", 30, "monetary", "Revenue"),
     M("revenue_total", "us-gaap", "SalesRevenueNet", 40, "monetary", "Revenue"),
     # Earnings.
@@ -44,11 +75,25 @@ CONCEPT_MAPPINGS: Final[tuple[ConceptMapping, ...]] = (
         "monetary",
         "Stockholders equity",
     ),
-    M("cash_and_equivalents", "us-gaap", "CashAndCashEquivalentsAtCarryingValue", 10, "monetary", "Cash and equivalents"),
+    M(
+        "cash_and_equivalents",
+        "us-gaap",
+        "CashAndCashEquivalentsAtCarryingValue",
+        10,
+        "monetary",
+        "Cash and equivalents",
+    ),
     # Per-share.
     M("eps_basic", "us-gaap", "EarningsPerShareBasic", 10, "per_share", "EPS basic"),
     M("eps_diluted", "us-gaap", "EarningsPerShareDiluted", 10, "per_share", "EPS diluted"),
-    M("shares_outstanding", "dei", "EntityCommonStockSharesOutstanding", 10, "shares", "Shares outstanding"),
+    M(
+        "shares_outstanding",
+        "dei",
+        "EntityCommonStockSharesOutstanding",
+        10,
+        "shares",
+        "Shares outstanding",
+    ),
 )
 
 CANONICAL_CONCEPTS: Final[tuple[str, ...]] = tuple(

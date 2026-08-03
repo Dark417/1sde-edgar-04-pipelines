@@ -20,7 +20,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from pipelines.contracts.models import DQCheck, Severity
+from edgar_lakehouse_contracts.models import Severity
+
+from pipelines.dq_model import DQCheck
 
 __all__ = ["DQBatchFailure", "DQResult", "apply_dq", "quarantine_frame"]
 
@@ -99,9 +101,9 @@ def quarantine_frame(
         reason.alias("_dq_failure_reason"),
         F.current_timestamp().alias("_quarantined_at"),
         F.lit(source_table).alias("_source_table"),
-        (F.col("_source_file") if "_source_file" in df.columns else F.lit(None).cast("string")).alias(
-            "_source_file"
-        ),
+        (
+            F.col("_source_file") if "_source_file" in df.columns else F.lit(None).cast("string")
+        ).alias("_source_file"),
         (
             F.col("_ingest_batch_id")
             if "_ingest_batch_id" in df.columns
@@ -137,7 +139,11 @@ def apply_dq(
     if not checks:
         empty_q = quarantine_frame(df.limit(0), (), run_id, source_table)
         rows_in = int(df.count())
-        return df, empty_q, {"dq.rows_in": rows_in, "dq.rows_passed": rows_in, "dq.rows_quarantined": 0}
+        return (
+            df,
+            empty_q,
+            {"dq.rows_in": rows_in, "dq.rows_passed": rows_in, "dq.rows_quarantined": 0},
+        )
 
     flagged = df
     flag_names: dict[str, DQCheck] = {}

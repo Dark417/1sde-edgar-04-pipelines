@@ -24,8 +24,9 @@ for extra in (_REPO_ROOT / "src", _REPO_ROOT):
     if str(extra) not in sys.path:
         sys.path.insert(0, str(extra))
 
+from edgar_lakehouse_contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM  # noqa: E402
+
 from pipelines.config import Settings  # noqa: E402
-from pipelines.contracts.envelope import ENVELOPE_VERSION, SOURCE_SYSTEM  # noqa: E402
 
 LOCAL_CATALOG = "spark_catalog"
 LOGICAL_DATE = "2026-07-31"

@@ -28,8 +28,9 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from edgar_lakehouse_contracts import schemas
+
 from pipelines.config import Settings
-from pipelines.contracts import schemas
 from pipelines.framework.metrics import JobRun
 
 __all__ = ["ExportedTable", "Manifest", "build_manifest", "export_all", "run"]
@@ -127,7 +128,9 @@ def _remove_dir(uri: str) -> None:
     shutil.rmtree(Path(uri.removeprefix("file:")), ignore_errors=True)
 
 
-def export_table(spark: Any, df: Any, name: str, export_root: str, staging_root: str) -> ExportedTable:
+def export_table(
+    spark: Any, df: Any, name: str, export_root: str, staging_root: str
+) -> ExportedTable:
     """Write one gold table as a single Parquet object and describe it."""
     staging = f"{staging_root.rstrip('/')}/{name}"
     dest = f"{export_root.rstrip('/')}/{EXPORT_PREFIX}/{name}/data.parquet"
@@ -188,9 +191,7 @@ def export_all(spark: Any, settings: Settings, run_ctx: JobRun) -> Manifest:
     # Fixed order (contracts section 5), so identical data yields an identical manifest.
     for spec in schemas.EXPORT_TABLES:
         df = spark.table(settings.table(spec.fqn))
-        exported.append(
-            export_table(spark, df, spec.name, settings.export_root, staging_root)
-        )
+        exported.append(export_table(spark, df, spec.name, settings.export_root, staging_root))
         run_ctx.record({f"export.{spec.name}.rows": exported[-1].row_count})
     # Leave nothing behind under the serving prefix but v1/: repo 5 globs this bucket,
     # and a leftover staging directory full of part files is a second source of truth.
