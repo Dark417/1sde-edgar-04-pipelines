@@ -192,7 +192,7 @@ def test_scd1_refuses_to_update_first_seen_ts(spark: Any, tables: str) -> None:
 def test_scd1_dedupes_the_source_on_the_business_key(spark: Any, tables: str) -> None:
     """Delta refuses a MERGE with two source rows per target row, and rightly so."""
     target = f"{tables}.silver.filing"
-    source = _filings(
+    source = _filings_scd1(
         spark,
         [("0000000001-26-000001", "0000000001", "A"), ("0000000001-26-000001", "0000000001", "B")],
     )

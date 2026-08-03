@@ -124,7 +124,7 @@ def test_company_profile_keeps_companies_with_no_filings(spark: Any) -> None:
         "cik STRING, company_name STRING, is_current BOOLEAN",
     )
     filings = spark.createDataFrame(
-        [("a", "0000000001", "A", "10-K", "10-K", False, date(2026, 7, 31))], FILING_DDL
+        [("a", "0000000001", "A", "10-K", "10-K", False, date(2026, 7, 31), True)], FILING_DDL
     )
     restatements = spark.createDataFrame([], "cik STRING")
     rows = {r["cik"]: r for r in company_profile.build(companies, filings, restatements).collect()}
