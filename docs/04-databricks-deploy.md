@@ -108,13 +108,30 @@ keeps them in the `dev` extra, and `tests/test_repo_guards.py` asserts it.
 ## 5. Validate, then deploy the bundle
 
 ```bash
+python -m tools.fetch_contracts_wheel     # REQUIRED, see below
 databricks bundle validate -t dev
 databricks bundle deploy   -t dev
 ```
 
+**The fetch step is not optional.** `databricks.yml` lists `./dist/contracts/*.whl` as a
+serverless dependency — `edgar-lakehouse-contracts` is not on PyPI, so serverless cannot
+resolve it from an index — but `dist/` is gitignored. Whatever the glob matches is
+whatever the last session happened to leave on disk:
+
+- on a **fresh clone** it matches nothing, and the job installs no contracts package;
+- on a **stale checkout** it matches an old version. This has already happened: a deploy
+  shipped `edgar_lakehouse_contracts-1.4.0` while `pyproject.toml` pinned `1.4.1`. Nothing
+  caught it, because `bundle deploy` prints the filename it uploads and no one compares
+  that line to the pin.
+
+`fetch_contracts_wheel` reads the version from `pyproject.toml` — the single pin — deletes
+any other version so pip is never left choosing between two, and downloads the matching
+wheel from repo 1's release. `--check` verifies without downloading and is what to run if
+you only want to know whether the directory is honest.
+
 `deploy` uploads the wheel and creates/updates the job definition. It does **not** run
 anything. Re-run `tools/dbx_verify.py` afterwards; `job definition` should now be `ok`
-with `schedule: PAUSED`.
+with `schedule: UNPAUSED` (it was PAUSED until the first green end-to-end run).
 
 ---
 

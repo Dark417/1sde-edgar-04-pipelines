@@ -75,16 +75,31 @@ resources:
       #   * no run of this pipeline has ever succeeded against the workspace, so the
       #     first one should be a human watching it, not a timer at 06:00.
       #
-      # Unpause deliberately, after `tools/dbx_verify` passes:
-      #   databricks jobs update --json '{"schedule":{"pause_status":"UNPAUSED"}}' ...
-      # or flip this to UNPAUSED and redeploy.
+      # UNPAUSED as of the first green end-to-end run: bronze 62s, silver 116s,
+      # gold 48s, serving_export 36s, all SUCCESS against logical_date 2026-07-31.
+      # Repo 2's EventBridge ingest schedule is enabled to match, so the daily
+      # chain runs unattended: Fargate lands the day's filings, this picks them up.
       #
-      # 06:00 UTC: the SEC publishes the daily index the previous evening US Eastern,
-      # so this lands after the file exists but before the working day starts.
+      # 06:30 UTC, NOT 06:00. Repo 2's ingest schedule is cron(0 6 * * ? *) and this
+      # used to be "0 0 6 * * ?" -- the same minute. Enabling both would have started
+      # the pipeline while Fargate was still writing the landing zone, so a run would
+      # silently process a partial day rather than fail: bronze reads whatever files
+      # exist at that instant.
+      #
+      # There is no completion signal between the two schedules -- EventBridge cannot
+      # trigger a Databricks job here -- so the gap is the only coupling. 30 minutes
+      # against an ingest that takes ~90s per stream is deliberately generous; the
+      # cost of being early is wrong data, the cost of being late is nothing.
+      #
+      # 06:00-ish overall: the SEC publishes the daily index the previous evening US
+      # Eastern, so this lands after the file exists but before the working day starts.
+      #
+      # To pause again: flip to PAUSED and redeploy, or
+      #   databricks jobs update --json '{"schedule":{"pause_status":"PAUSED"}}' ...
       schedule:
-        quartz_cron_expression: "0 0 6 * * ?"
+        quartz_cron_expression: "0 30 6 * * ?"
         timezone_id: UTC
-        pause_status: PAUSED
+        pause_status: UNPAUSED
 
       parameters:
         - name: logical_date
@@ -101,11 +116,22 @@ resources:
         #     --params landing_root=/Volumes/edgar/landing/edgar/_seed
         - name: landing_root
           default: ""
-        # Also empty by default -> resolves via SSM in a provisioned environment. Set it
-        # at run time to exercise the pipeline before repo 2 publishes the parameter; a
-        # /Volumes path keeps the run free of any AWS dependency.
+        # NOT empty, and it cannot be. config.resolve() looks this up with an SSM
+        # key and no fallback default, so an empty value raises MissingConfigError
+        # in bronze_ingest before any work happens -- every scheduled run would
+        # fail at the first task.
+        #
+        # The old comment here said it "resolves via SSM in a provisioned
+        # environment". It cannot: this job runs on serverless, which holds no AWS
+        # credentials, so the SSM call fails no matter how well repo 2 has
+        # published the parameter. Repo 2 publishing it is necessary for the
+        # publish step and irrelevant to the job.
+        #
+        # So the job exports to the Volume, and tools/publish_serving.py moves it
+        # to s3://edgar-lake-serving from somewhere that does hold credentials.
+        # This must stay in step with that tool's DEFAULT_VOLUME_EXPORT.
         - name: export_root
-          default: ""
+          default: /Volumes/edgar/landing/edgar/_export
 
       environments:
         - environment_key: serverless
