@@ -90,6 +90,26 @@ def _filings(spark: Any, rows: list[tuple[str, str, str]]) -> Any:
     ).withColumn("filing_sk", surrogate_key("accession_number"))
 
 
+def _filings_scd1(spark: Any, rows: list[tuple[str, str, str]]) -> Any:
+    """silver.filing became SCD-2, so its version columns are NOT NULL.
+
+    merge_scd1 does not populate them -- it is not an SCD-2 merge -- so a fixture
+    exercising SCD-1 against this table has to supply them itself. The alternative,
+    pointing these tests at a different table, would stop testing merge_scd1 against a
+    real contract shape.
+    """
+    from pyspark.sql import functions as F
+
+    return (
+        _filings(spark, rows)
+        .withColumn("version_number", F.lit(1))
+        .withColumn("valid_from", F.lit("2026-07-31").cast("date"))
+        .withColumn("valid_to", F.lit(None).cast("date"))
+        .withColumn("is_current", F.lit(True))
+        .withColumn("_hash_diff", F.lit("scd1-fixture"))
+    )
+
+
 # ----------------------------------------------------------------------------- hash
 
 
@@ -122,7 +142,7 @@ def test_hash_diff_distinguishes_null_position(spark: Any) -> None:
 
 def test_scd1_inserts_then_is_a_no_op(spark: Any, tables: str) -> None:
     target = f"{tables}.silver.filing"
-    source = _filings(spark, [("0000000001-26-000001", "0000000001", "A")])
+    source = _filings_scd1(spark, [("0000000001-26-000001", "0000000001", "A")])
 
     first = merge_scd1(spark, source, target, keys=("accession_number",))
     assert first.rows_inserted == 1
@@ -141,14 +161,14 @@ def test_scd1_updates_last_seen_but_not_first_seen(spark: Any, tables: str) -> N
     target = f"{tables}.silver.filing"
     merge_scd1(
         spark,
-        _filings(spark, [("0000000001-26-000001", "0000000001", "OLD NAME")]),
+        _filings_scd1(spark, [("0000000001-26-000001", "0000000001", "OLD NAME")]),
         target,
         keys=("accession_number",),
     )
     original = spark.table(target).collect()[0]
     merge_scd1(
         spark,
-        _filings(spark, [("0000000001-26-000001", "0000000001", "NEW NAME")]),
+        _filings_scd1(spark, [("0000000001-26-000001", "0000000001", "NEW NAME")]),
         target,
         keys=("accession_number",),
     )
@@ -162,7 +182,7 @@ def test_scd1_refuses_to_update_first_seen_ts(spark: Any, tables: str) -> None:
     with pytest.raises(ValueError, match="_first_seen_ts must never be updated"):
         merge_scd1(
             spark,
-            _filings(spark, [("0000000001-26-000001", "0000000001", "A")]),
+            _filings_scd1(spark, [("0000000001-26-000001", "0000000001", "A")]),
             f"{tables}.silver.filing",
             keys=("accession_number",),
             update_cols=("company_name", "_first_seen_ts"),
@@ -183,7 +203,7 @@ def test_scd1_dedupes_the_source_on_the_business_key(spark: Any, tables: str) ->
 
 def test_scd1_requires_a_key(spark: Any, tables: str) -> None:
     with pytest.raises(ValueError, match="at least one business key"):
-        merge_scd1(spark, _filings(spark, []), f"{tables}.silver.filing", keys=())
+        merge_scd1(spark, _filings_scd1(spark, []), f"{tables}.silver.filing", keys=())
 
 
 # ---------------------------------------------------------------------------- SCD-2

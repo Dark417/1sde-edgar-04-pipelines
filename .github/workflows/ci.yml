@@ -100,8 +100,8 @@ jobs:
           gh release download "$CONTRACTS_TAG" --repo "$CONTRACTS_REPO" \
             --pattern 'edgar_lakehouse_contracts-*.whl' --dir wheels
       - run: pip install --find-links wheels -e ".[dev]"
-      - name: contracts drift
-        run: pytest tests/test_contract_compat.py -q
+      - name: layer signature (each table carries exactly its layer's audit columns)
+        run: pytest tests/test_layer_signature.py -q
       - name: repo guards (no CREATE TABLE, no dbutils outside entrypoints)
         run: pytest tests/test_repo_guards.py -q
 
