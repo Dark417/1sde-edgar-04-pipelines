@@ -27,7 +27,7 @@ dependencies = [
   # RUNTIME, not dev: the mirror is gone, so the Databricks job imports this package at
   # execution time. It is not on PyPI, so serverless cannot resolve it from an index --
   # the bundle ships the wheel in dist/ and lists it in environments.dependencies.
-  "edgar-lakehouse-contracts==1.4.0",
+  "edgar-lakehouse-contracts==1.4.1",
 ]
 
 [project.optional-dependencies]

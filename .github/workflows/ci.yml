@@ -21,7 +21,7 @@ env:
   # get it, and a mismatch fails at install time rather than silently resolving to
   # something else.
   CONTRACTS_REPO: Dark417/1sde-edgar-01-contracts
-  CONTRACTS_TAG: v1.4.0
+  CONTRACTS_TAG: v1.4.1
 
 jobs:
   lint-and-fast-tests:
