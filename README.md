@@ -14,7 +14,6 @@ company later asserted a different value for a period it had already reported.
 > costs to run, with a diagram for each.
 >
 > **Live:** [the site](https://edgar.xiaoxiaolei.com) ·
-> [the chatbot](https://edgar.xiaoxiaolei.com/chat) ·
 > [SEC EDGAR](https://www.sec.gov/edgar), where the source filings come from.
 
 ## Layout
