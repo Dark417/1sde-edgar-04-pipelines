@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="820" viewBox="0 0 1600 820" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <!-- Opaque canvas: GitHub renders README images on light or dark, so the diagram
+       carries its own background rather than inheriting one. -->
+  <rect x="0" y="0" width="1600" height="820" fill="#FFFFFF"/>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#374151"/>
+    </marker>
+  </defs>
+
+  <text x="40" y="48" font-size="30" font-weight="700" fill="#111827">SEC EDGAR lakehouse — how a filing becomes an answer</text>
+  <text x="40" y="80" font-size="17" fill="#4B5563">Six repositories, one direction of travel. The four solid ones run today; the dashed pair is designed but not written.</text>
+
+  <!-- ============================ main flow ============================ -->
+  <!-- 6 boxes, 185 wide, 82 gaps, y 185..290 -->
+
+  <!-- 1. source -->
+  <rect x="40" y="185" width="185" height="105" rx="8" fill="#E5E7EB" stroke="#4B5563" stroke-width="2"/>
+  <text x="132" y="222" font-size="17" font-weight="700" fill="#111827" text-anchor="middle">SEC EDGAR</text>
+  <text x="132" y="246" font-size="14" fill="#374151" text-anchor="middle">public filings API</text>
+  <text x="132" y="268" font-size="14" fill="#374151" text-anchor="middle">5 req/s, no key</text>
+
+  <!-- 2. repo 3 -->
+  <rect x="307" y="185" width="185" height="105" rx="8" fill="#FFFFFF" stroke="#1F2937" stroke-width="2"/>
+  <text x="399" y="215" font-size="15" font-weight="700" fill="#B45309" text-anchor="middle">REPO 3</text>
+  <text x="399" y="238" font-size="17" font-weight="700" fill="#111827" text-anchor="middle">Ingest</text>
+  <text x="399" y="260" font-size="14" fill="#374151" text-anchor="middle">ECS Fargate task</text>
+  <text x="399" y="279" font-size="14" fill="#374151" text-anchor="middle">3 streams / day</text>
+
+  <!-- 3. landing -->
+  <rect x="574" y="185" width="185" height="105" rx="8" fill="#FFFFFF" stroke="#1F2937" stroke-width="2"/>
+  <text x="666" y="218" font-size="17" font-weight="700" fill="#111827" text-anchor="middle">Landing zone</text>
+  <text x="666" y="242" font-size="14" fill="#374151" text-anchor="middle">S3 = system of record</text>
+  <text x="666" y="262" font-size="14" fill="#374151" text-anchor="middle">Volume = transport</text>
+  <text x="666" y="282" font-size="14" fill="#6B7280" text-anchor="middle">written to both</text>
+
+  <!-- 4. repo 4 (highlighted - this repo) -->
+  <rect x="841" y="178" width="185" height="119" rx="8" fill="#FEF3C7" stroke="#B45309" stroke-width="3"/>
+  <text x="933" y="205" font-size="15" font-weight="700" fill="#B45309" text-anchor="middle">REPO 4 — you are here</text>
+  <text x="933" y="230" font-size="17" font-weight="700" fill="#111827" text-anchor="middle">Medallion</text>
+  <text x="933" y="252" font-size="14" fill="#374151" text-anchor="middle">bronze → silver → gold</text>
+  <text x="933" y="272" font-size="14" fill="#374151" text-anchor="middle">4 tasks, ~4.5 min</text>
+  <text x="933" y="290" font-size="14" fill="#374151" text-anchor="middle">13 tables, 6 views</text>
+
+  <!-- 5. serving -->
+  <rect x="1108" y="185" width="185" height="105" rx="8" fill="#FFFFFF" stroke="#1F2937" stroke-width="2"/>
+  <text x="1200" y="218" font-size="17" font-weight="700" fill="#111827" text-anchor="middle">Serving bucket</text>
+  <text x="1200" y="242" font-size="14" fill="#374151" text-anchor="middle">4 Parquet extracts</text>
+  <text x="1200" y="262" font-size="14" fill="#374151" text-anchor="middle">+ manifest</text>
+  <text x="1200" y="282" font-size="14" fill="#6B7280" text-anchor="middle">120 KB total</text>
+
+  <!-- 6. consumers (not built) -->
+  <rect x="1375" y="185" width="185" height="105" rx="8" fill="#F3F4F6" stroke="#9CA3AF" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1467" y="215" font-size="15" font-weight="700" fill="#6B7280" text-anchor="middle">REPOS 5 &amp; 6</text>
+  <text x="1467" y="238" font-size="17" font-weight="700" fill="#4B5563" text-anchor="middle">API &amp; chat</text>
+  <text x="1467" y="261" font-size="14" fill="#6B7280" text-anchor="middle">design stage —</text>
+  <text x="1467" y="280" font-size="14" fill="#6B7280" text-anchor="middle">not built yet</text>
+
+  <!-- arrows + labels -->
+  <!-- Labels sit ABOVE the box row, not in the 75px gap: "gzip NDJSON" is wider
+       than the gap and overlapped the neighbouring boxes when centred on the arrow. -->
+  <line x1="225" y1="237" x2="300" y2="237" stroke="#374151" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="262" y="170" font-size="14" fill="#374151" text-anchor="middle">HTTPS</text>
+  <line x1="262" y1="176" x2="262" y2="228" stroke="#D1D5DB" stroke-width="1.5"/>
+
+  <line x1="492" y1="237" x2="567" y2="237" stroke="#374151" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="529" y="170" font-size="14" fill="#374151" text-anchor="middle">gzip NDJSON</text>
+  <line x1="529" y1="176" x2="529" y2="228" stroke="#D1D5DB" stroke-width="1.5"/>
+
+  <line x1="759" y1="237" x2="834" y2="237" stroke="#374151" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="796" y="170" font-size="14" fill="#374151" text-anchor="middle">Auto Loader</text>
+  <line x1="796" y1="176" x2="796" y2="228" stroke="#D1D5DB" stroke-width="1.5"/>
+
+  <line x1="1026" y1="237" x2="1101" y2="237" stroke="#374151" stroke-width="2.5" marker-end="url(#arrow)"/>
+  <text x="1063" y="170" font-size="14" fill="#374151" text-anchor="middle">Parquet</text>
+  <line x1="1063" y1="176" x2="1063" y2="228" stroke="#D1D5DB" stroke-width="1.5"/>
+
+  <line x1="1293" y1="237" x2="1368" y2="237" stroke="#9CA3AF" stroke-width="2.5" stroke-dasharray="7 5" marker-end="url(#arrow)"/>
+  <text x="1330" y="170" font-size="14" fill="#6B7280" text-anchor="middle">reads</text>
+  <line x1="1330" y1="176" x2="1330" y2="228" stroke="#E5E7EB" stroke-width="1.5"/>
+
+  <!-- ============================ repo 1 band ============================ -->
+  <rect x="40" y="360" width="1253" height="96" rx="8" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="2"/>
+  <text x="66" y="390" font-size="15" font-weight="700" fill="#1D4ED8">REPO 1 — Contracts (the shared vocabulary)</text>
+  <text x="66" y="415" font-size="15" fill="#1E3A5F">One Python package defines every table, column and file name. Repos 3 and 4 install it as a pinned dependency —</text>
+  <text x="66" y="437" font-size="15" fill="#1E3A5F">neither keeps its own copy, so the two cannot quietly disagree about what a column means.</text>
+  <text x="1270" y="400" font-size="15" font-weight="700" fill="#1D4ED8" text-anchor="end">13 tables</text>
+  <text x="1270" y="424" font-size="15" font-weight="700" fill="#1D4ED8" text-anchor="end">43 migrations</text>
+
+  <!-- dashed connectors from band up to repos 3 and 4 -->
+  <line x1="399" y1="360" x2="399" y2="292" stroke="#1D4ED8" stroke-width="2" stroke-dasharray="5 4"/>
+  <line x1="933" y1="360" x2="933" y2="299" stroke="#1D4ED8" stroke-width="2" stroke-dasharray="5 4"/>
+
+  <!-- ============================ repo 2 band ============================ -->
+  <rect x="40" y="486" width="1253" height="96" rx="8" fill="#DCFCE7" stroke="#15803D" stroke-width="2"/>
+  <text x="66" y="516" font-size="15" font-weight="700" fill="#15803D">REPO 2 — Infrastructure (everything the others run on)</text>
+  <text x="66" y="541" font-size="15" fill="#14532D">Terraform owns the buckets, the container registry, the Fargate cluster, the schedules and the IAM roles.</text>
+  <text x="66" y="563" font-size="15" fill="#14532D">Nothing is clicked into existence; an auto-apply refuses any plan that would delete or replace a resource.</text>
+  <text x="1270" y="526" font-size="15" font-weight="700" fill="#15803D" text-anchor="end">1 AWS account</text>
+  <text x="1270" y="550" font-size="15" font-weight="700" fill="#15803D" text-anchor="end">1 region</text>
+
+  <!-- ============================ schedule strip ============================ -->
+  <rect x="40" y="612" width="1520" height="76" rx="8" fill="#FFFFFF" stroke="#D1D5DB" stroke-width="2"/>
+  <!-- Separate <text> elements with explicit x: runs of spaces inside one SVG text
+       node collapse to a single space, which ran these three phrases together. -->
+  <text x="66" y="640" font-size="15" font-weight="700" fill="#111827">Daily, unattended</text>
+  <text x="66" y="668" font-size="15" font-weight="700" fill="#B45309">06:00 UTC</text>
+  <text x="152" y="668" font-size="15" fill="#374151">Fargate pulls the previous trading day</text>
+  <text x="440" y="668" font-size="15" font-weight="700" fill="#B45309">06:30 UTC</text>
+  <text x="526" y="668" font-size="15" fill="#374151">the pipeline picks it up</text>
+  <text x="700" y="668" font-size="15" fill="#6B7280">The 30-minute gap is the only thing sequencing them — there is no completion signal between the two.</text>
+
+  <!-- ============================ footer ============================ -->
+  <text x="40" y="730" font-size="14" fill="#6B7280">Runs on Databricks Free Edition and a personal AWS account. This is a portfolio demo, not a production system, and nothing here is investment advice.</text>
+  <text x="40" y="754" font-size="14" fill="#6B7280">Figures are from a real run on 2026-08-03 against filings dated 2026-07-31: 3,998 current financial facts, 329 restatements, 230 activity rows, 8 companies.</text>
+  <text x="40" y="778" font-size="14" fill="#6B7280">Repos 1–4 are built, tested and deployed. Repos 5 and 6 are drawn dashed because they are designed but not written.</text>
+</svg>

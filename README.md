@@ -7,6 +7,20 @@ Free Edition.
 The flagship feature is **restatement detection** — automatically surfacing where a
 company later asserted a different value for a period it had already reported.
 
+> ### 📊 [Start here: the project walkthrough →](demo/)
+>
+> `demo/` holds the presentation for the whole system, repos 1–4 in one place, written for
+> readers who are not going to open the code:
+>
+> - **[demo/README.md](demo/README.md)** — what the project does and why restatements make
+>   it hard, in plain language
+> - **[demo/architecture.svg](demo/architecture.svg)** — the whole flow in one picture
+> - **[demo/walkthrough.md](demo/walkthrough.md)** — run it on demand, and where each
+>   system keeps its history when you need to check what happened
+>
+> It lives in this repo because this is where the medallion chain lives; it describes all
+> four working repositories, not just this one.
+
 ## Layout
 
 ```
